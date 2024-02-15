@@ -1,115 +1,161 @@
-import numpy as np
-from transformers import T5ForConditionalGeneration
-from avalanche.benchmarks.utils import make_classification_dataset
-from avalanche.benchmarks.utils import AvalancheDataset
-import avalanche.training.templates.base
-from avalanche.evaluation.metrics import accuracy_metrics
-from avalanche.benchmarks import CLScenario, CLStream, CLExperience
-import torch.nn
 import avalanche
-from transformers.utils import PaddingStrategy
-from typing import Optional, Union, Any
-from transformers import PreTrainedTokenizerBase
-from dataclasses import dataclass
-from avalanche.training.plugins import ReplayPlugin
-from avalanche.benchmarks.utils import DataAttribute, ConstantSequence
-import jsonlines
-import json
-import h5py
 import torch
 import itertools
 import pandas as pd
 import random
+import jsonlines
 import xml.etree.ElementTree as ET
-from datasets import load_dataset
+import argparse
+import torch.nn as nn
+import avalanche.evaluation.metrics as amet
+
 from avalanche.benchmarks.generators import tensors_benchmark, dataset_benchmark
+from avalanche.training.templates import SupervisedTemplate
+from avalanche.logging import InteractiveLogger, WandBLogger
+from avalanche.training.plugins import EvaluationPlugin
 from transformers import BertModel
 from transformers import AutoTokenizer
+from transformers import BertConfig
+from modnets import BertForPreTraining
 from datasets import Dataset
 from torch.utils.data import TensorDataset
+from dataset import create_unlabeled_benchmark, create_endtask_benchmark
+from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Sequence, Union
 
-MASK_PROP = 0.15
-
-
-def preprocess_function_pubmed(pubmed):
-    inputs = [x['MedlineCitation']['Article']
-              ['Abstract']['AbstractText'] for x in pubmed['train']]
-
-
-def mask_nsp_data(tokenizer, nsp_data):
-    for i, tokens in enumerate(nsp_data):
-        for j, token in enumerate(tokens['input_ids']):
-            if token != 0 and token != 101 and token != 102:
-                if random.random() < MASK_PROP:
-                    if random.random() < 0.8:
-                        nsp_data[i]['input_ids'][j] = 103
-                    else:
-                        if random.random() < 0.5:
-                            nsp_data[i]['input_ids'][j] = random.randint(
-                                1, len(tokenizer.get_vocab()))
+FLAGS = argparse.ArgumentParser()
+FLAGS.add_argument('--datasets', type=str, default='s2orc',
+                   help='Names of datasets')
+FLAGS.add_argument('--model', type=str, default='bert-base-uncased',
+                   help='type of pretrained model')
+FLAGS.add_argument('--epoch', type=int, default=1)
+args = FLAGS.parse_args()
 
 
-def get_nsp_data(tokenizer, paragraphs):
-    label = []
-    nsp_data = []
-    for paragraph in paragraphs:
-        for i in range(len(paragraph) - 1):
-            if random.random() < 0.5:
-                label.append(1)
-                nsp_data.append(
-                    tokenizer(paragraph[i], paragraph[i+1], padding='max_length', max_length=128))
-            else:
-                label.append(0)
-                nsp_data.append(
-                    tokenizer(paragraph[i], random.choice(random.choice(paragraphs)), padding='max_length', max_length=128))
-    return nsp_data, label
+class PiggybackStrategy(SupervisedTemplate):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def train(self, experiences: Any | Iterable, eval_streams: Sequence[Any | Iterable] | None = None, **kwargs):
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        return super().train(experiences, eval_streams, **kwargs)
+
+    def forward(self):
+        # input_ids = d[0, :]
+        # token_type_ids = d[1, :]
+        # attention_mask = d[2, :]
+        input_ids = self.mb_x[:, 0, :].type(torch.IntTensor).to('cuda')
+        token_type_ids = self.mb_x[:, 1, :].type(torch.IntTensor).to('cuda')
+        attention_mask = self.mb_x[:, 2, :].type(torch.IntTensor).to('cuda')
+        print(input_ids.shape, token_type_ids.shape,
+              attention_mask.shape, self.mb_task_id)
+        return self.model(input_ids, token_type_ids, attention_mask, self.mb_task_id)
+
+    def backward(self):
+        super().backward()
+
+        for module in self.model.modules():
+            if 'ElementWiseConv2d' in str(type(module)) or 'ElementWiseLinear' in str(type(module)):
+                abs_weights = module.weight.data.abs()
+                for i in range(len(module.masks)):
+                    if module.masks[str(i)].grad is not None:
+                        module.masks[str(i)].grad.data.div_(abs_weights.mean())
+
+            elif 'ElementWiseMultiheadAttention' in str(type(module)):
+                if not module._qkv_same_embed_dim:
+                    abs_q_proj_weights = module.q_proj_weight.data.abs()
+                    abs_k_proj_weights = module.k_proj_weight.data.abs()
+                    abs_v_proj_weights = module.v_proj_weight.data.abs()
+                    for i in range(len(module.masks)):
+                        if module.masks[str(i)][0].grad is not None:
+                            module.masks[str(i)][0].grad.data.div_(
+                                abs_q_proj_weights.mean())
+                            module.masks[str(i)][1].grad.data.div_(
+                                abs_k_proj_weights.mean())
+                            module.masks[str(i)][2].grad.data.div_(
+                                abs_v_proj_weights.mean())
+                else:
+                    abs_in_proj_weights = module.in_proj_weight.data.abs()
+                    for i in range(len(module.masks)):
+                        if module.masks[str(i)].grad is not None:
+                            module.masks[str(i)].grad.data.div_(
+                                abs_in_proj_weights.mean())
 
 
-realnews = []
-with jsonlines.open('../data/unlabeled/realnews/realnews.jsonl') as f:
-    for i, lin in enumerate(f):
-        sentences = lin['text'].strip().replace(
-            '\n', '').lower().split('.')
-        paragraph = []
-        for sentence in sentences:
-            if len(sentence) >= 2:
-                paragraph.append(sentence)
-        realnews.append(paragraph)
-        if i == 10:
-            break
+tokenizer = AutoTokenizer.from_pretrained(args.model)
+model_pretrained = BertModel.from_pretrained(args.model)
 
-# pubmed = load_dataset('pubmed', split='train[:10]')
+if args.model == 'bert-base-uncased':
+    config = BertConfig()
+model = BertForPreTraining(config)
 
-# pm = []
-# i = 0
-# for entry in torch_iterable_dataset['train']:
-#     pm.append(entry['MedlineCitation']['Article']['Abstract']['AbstractText'])
-#     i += 1
-#     if i == 1000:
-#         break
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
-tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-model = BertModel.from_pretrained('bert-base-uncased')
+interactive_logger = InteractiveLogger()
+# wandb_logger = WandBLogger(
+#     project_name="piggyback_ViT",
+#     run_name="piggyback_%s" % (args.datasets),
+#     path="../checkpoint",
+#     config=vars(args)
+# )
+eval_plugin = EvaluationPlugin(
+    amet.accuracy_metrics(
+        epoch=True,
+        experience=True,
+        stream=True
+    ),
+    amet.loss_metrics(
+        epoch=True,
+        experience=True,
+        stream=True
+    ),
+    loggers=[interactive_logger]
+)
+cl_strategy = PiggybackStrategy(model,
+                                optimizer,
+                                criterion,
+                                train_mb_size=128,
+                                train_epochs=args.epoch,
+                                eval_mb_size=128,
+                                device='cuda',
+                                evaluator=eval_plugin,
+                                eval_every=1)
 
-nsp_data, label = get_nsp_data(tokenizer, realnews)
-mask_nsp_data(tokenizer, nsp_data)
+# benchmark_endtask = create_endtask_benchmark(args, tokenizer)
+benchmark_unlabeled = create_unlabeled_benchmark(args, tokenizer)
 
-for a, n in zip(nsp_data, label):
-    print(torch.Tensor(a['input_ids']))
+# train_stream = benchmark_endtask.train_stream
+# test_stream = benchmark_endtask.test_stream
+train_stream = benchmark_unlabeled.train_stream
+test_stream = benchmark_unlabeled.test_stream
 
-# dss_realnews_train = []
-# dss_realnews_test = []
-# for i in range(0, 3):
-#     masked = torch.Tensor(
-#         tokenized_realnews['input_ids'][i * 3:(i+1)*3])
-#     label = torch.Tensor(
-#         [0, 0, 0])
-#     dss_realnews_train.append(make_classification_dataset(
-#         TensorDataset(masked, label), task_labels=i))
-#     dss_realnews_test.append(make_classification_dataset(
-#         TensorDataset(masked, label), task_labels=i))
+torch.set_printoptions(profile="full")
 
-# benchmark = dataset_benchmark(dss_realnews_train, dss_realnews_test)
+results = []
+for train_exp, test_exp in zip(train_stream, test_stream):
+    # d = train_exp.dataset[0][0]
+    # task_label = train_exp.dataset[0][2]
+    # input_ids = d[0, :]
+    # token_type_ids = d[1, :]
+    # attention_mask = d[2, :]
+    # a, b = model(input_ids=input_ids[None, :].type(torch.IntTensor), token_type_ids=token_type_ids[None, :].type(torch.IntTensor),
+    #              attention_mask=attention_mask[None, :].type(torch.IntTensor), task_label=task_label)
+    # print(a.shape, b.shape)
+    # model.adaptation(train_exp)
+    print(model)
+    print("Start of experience: ", train_exp.current_experience)
+    print("Current Classes: ", train_exp.classes_in_this_experience)
 
-# train_stream = benchmark.train_stream
-# test_stream = benchmark.test_stream
+    cl_strategy.train(train_exp, eval_streams=[test_exp])
+    print('Training completed')
+
+    # check(model, model_pretrained)
+
+    print('Computing accuracy on the test set')
+    result = cl_strategy.eval(test_stream)
+
+    results.append(result)
+# print(model)
+
+
+# self.mbatch
