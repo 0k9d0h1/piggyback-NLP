@@ -165,7 +165,6 @@ class BertSelfAttention(am.MultiTaskModule):
         past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
         output_attentions: Optional[bool] = False,
     ) -> Tuple[torch.Tensor]:
-        print(hidden_states, task_label)
         mixed_query_layer = self.query(hidden_states, task_label)
 
         # If this is instantiated as a cross-attention module, the keys
@@ -202,7 +201,6 @@ class BertSelfAttention(am.MultiTaskModule):
         use_cache = past_key_value is not None
         if self.is_decoder:
             past_key_value = (key_layer, value_layer)
-
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(
             query_layer, key_layer.transpose(-1, -2))
@@ -212,7 +210,6 @@ class BertSelfAttention(am.MultiTaskModule):
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
-        print(attention_scores.shape, attention_mask)
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
@@ -406,6 +403,7 @@ class BertLayer(am.MultiTaskModule):
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
         self_attn_past_key_value = past_key_value[:
                                                   2] if past_key_value is not None else None
+
         self_attention_outputs = self.attention(
             hidden_states,
             attention_mask,
@@ -482,7 +480,6 @@ class BertEncoder(am.MultiTaskModule):
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
             past_key_value = past_key_values[i] if past_key_values is not None else None
-
             layer_outputs = layer_module(
                 hidden_states,
                 attention_mask,
@@ -493,7 +490,6 @@ class BertEncoder(am.MultiTaskModule):
                 past_key_value,
                 output_attentions,
             )
-
             hidden_states = layer_outputs[0]
             if use_cache:
                 next_decoder_cache += (layer_outputs[-1],)
@@ -757,7 +753,6 @@ class BertModel(am.MultiTaskModule):
             inputs_embeds=inputs_embeds,
             past_key_values_length=past_key_values_length,
         )
-
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask=extended_attention_mask,
@@ -829,7 +824,6 @@ class BertForPreTraining(am.MultiTaskModule):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ):
-        print("!!!!", task_label)
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
@@ -848,3 +842,64 @@ class BertForPreTraining(am.MultiTaskModule):
             sequence_output, pooled_output, task_label)
 
         return prediction_scores, seq_relationship_score
+
+
+class BertForEndtask(am.MultiTaskModule):
+
+    def __init__(self, config, num_classes, mask_embedding=False):
+        super().__init__()
+        self.bert = BertModel(config, mask_embedding)
+        self.cls = MultiTaskClassifier(config.hidden_size, num_classes)
+
+    def adaptation(self, experience: CLExperience):
+        super().adaptation(experience)
+        for module in self.modules():
+            if 'adaptation' in dir(module) and module is not self:
+                module.adaptation(experience)
+
+    def forward(
+        self,
+        input_ids: Optional[torch.Tensor],
+        attention_mask: Optional[torch.Tensor],
+        token_type_ids: Optional[torch.Tensor],
+        task_label,
+        position_ids: Optional[torch.Tensor] = None,
+        head_mask: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+    ):
+        return self.forward_single_task(input_ids, attention_mask, token_type_ids, task_label, position_ids, head_mask, inputs_embeds, output_attentions, output_hidden_states, return_dict)
+
+    def forward_single_task(
+        self,
+        input_ids: Optional[torch.Tensor],
+        attention_mask: Optional[torch.Tensor],
+        token_type_ids: Optional[torch.Tensor],
+        task_label,
+        position_ids: Optional[torch.Tensor] = None,
+        head_mask: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+    ):
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            task_label=task_label,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        pooled_output = outputs[1]
+        output = self.cls(
+            pooled_output, task_label)
+
+        return output

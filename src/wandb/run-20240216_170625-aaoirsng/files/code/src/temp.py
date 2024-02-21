@@ -27,7 +27,8 @@ FLAGS.add_argument('--datasets', type=str, default='s2orc',
                    help='Names of datasets')
 FLAGS.add_argument('--model', type=str, default='bert-base-uncased',
                    help='type of pretrained model')
-FLAGS.add_argument('--epoch', type=int, default=1)
+FLAGS.add_argument('--epoch', type=int, default=5)
+FLAGS.add_argument('--seed', type=int, default=1)
 args = FLAGS.parse_args()
 
 
@@ -40,15 +41,22 @@ class PiggybackStrategy(SupervisedTemplate):
         return super().train(experiences, eval_streams, **kwargs)
 
     def forward(self):
-        # input_ids = d[0, :]
-        # token_type_ids = d[1, :]
-        # attention_mask = d[2, :]
-        input_ids = self.mb_x[:, 0, :].type(torch.IntTensor).to('cuda')
-        token_type_ids = self.mb_x[:, 1, :].type(torch.IntTensor).to('cuda')
-        attention_mask = self.mb_x[:, 2, :].type(torch.IntTensor).to('cuda')
-        print(input_ids.shape, token_type_ids.shape,
-              attention_mask.shape, self.mb_task_id)
-        return self.model(input_ids, token_type_ids, attention_mask, self.mb_task_id)
+        self.input_ids = self.mb_x[:, 0, :].to('cuda')
+        print(self.input_ids)
+        self.original_input_ids = self.mb_x[:, 1, :].to('cuda')
+        self.token_type_ids = self.mb_x[:, 2, :].to('cuda')
+        self.attention_mask = self.mb_x[:, 3, :].to('cuda')
+        task_label = self.mb_task_id[0].item()
+        return self.model(input_ids=self.input_ids, token_type_ids=self.token_type_ids, attention_mask=self.attention_mask, task_label=task_label)
+
+    def criterion(self):
+        prediction_scores, seq_relationship_score = self.mb_output
+        masked_token = self.input_ids.eq(103)
+        loss_mask = self._criterion(
+            prediction_scores[masked_token], self.original_input_ids[masked_token].type(torch.LongTensor).to('cuda'))
+        loss_nsp = self._criterion(
+            seq_relationship_score, self.mb_y.type(torch.LongTensor).to('cuda'))
+        return loss_mask + loss_nsp
 
     def backward(self):
         super().backward()
@@ -81,6 +89,36 @@ class PiggybackStrategy(SupervisedTemplate):
                                 abs_in_proj_weights.mean())
 
 
+def copy_weights(model, model_pretrained):
+    # Copy weights of pretrained model
+    module_list = list(model_pretrained.modules())
+    i = 0
+
+    for module in model.modules():
+        if i == len(module_list):
+            break
+
+        if 'ElementWiseLinear' in str(type(module)):
+            module.weight.data.copy_(module_list[i].weight.data)
+            module.bias.data.copy_(module_list[i].bias.data)
+
+        elif 'Embedding' in str(type(module)) and 'Bert' not in str(type(module)):
+            module.weight.data.copy_(module_list[i].weight.data)
+
+        elif 'LayerNorm' in str(type(module)):
+            module.weight.data.copy_(module_list[i].weight.data)
+            module.bias.data.copy_(module_list[i].bias.data)
+            module.eval()
+
+        elif 'Dict' in str(type(module)) or 'BertForPreTraining' in str(type(module)):
+            continue
+        i += 1
+
+
+random.seed(args.seed)
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
+
 tokenizer = AutoTokenizer.from_pretrained(args.model)
 model_pretrained = BertModel.from_pretrained(args.model)
 
@@ -92,18 +130,13 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 interactive_logger = InteractiveLogger()
-# wandb_logger = WandBLogger(
-#     project_name="piggyback_ViT",
-#     run_name="piggyback_%s" % (args.datasets),
-#     path="../checkpoint",
-#     config=vars(args)
-# )
+wandb_logger = WandBLogger(
+    project_name="piggyback_ViT",
+    run_name="piggyback_%s" % (args.datasets),
+    path="../checkpoint",
+    config=vars(args)
+)
 eval_plugin = EvaluationPlugin(
-    amet.accuracy_metrics(
-        epoch=True,
-        experience=True,
-        stream=True
-    ),
     amet.loss_metrics(
         epoch=True,
         experience=True,
@@ -114,9 +147,9 @@ eval_plugin = EvaluationPlugin(
 cl_strategy = PiggybackStrategy(model,
                                 optimizer,
                                 criterion,
-                                train_mb_size=128,
+                                train_mb_size=16,
                                 train_epochs=args.epoch,
-                                eval_mb_size=128,
+                                eval_mb_size=16,
                                 device='cuda',
                                 evaluator=eval_plugin,
                                 eval_every=1)
@@ -129,20 +162,12 @@ benchmark_unlabeled = create_unlabeled_benchmark(args, tokenizer)
 train_stream = benchmark_unlabeled.train_stream
 test_stream = benchmark_unlabeled.test_stream
 
+copy_weights(model, model_pretrained)
 torch.set_printoptions(profile="full")
 
 results = []
 for train_exp, test_exp in zip(train_stream, test_stream):
-    # d = train_exp.dataset[0][0]
-    # task_label = train_exp.dataset[0][2]
-    # input_ids = d[0, :]
-    # token_type_ids = d[1, :]
-    # attention_mask = d[2, :]
-    # a, b = model(input_ids=input_ids[None, :].type(torch.IntTensor), token_type_ids=token_type_ids[None, :].type(torch.IntTensor),
-    #              attention_mask=attention_mask[None, :].type(torch.IntTensor), task_label=task_label)
-    # print(a.shape, b.shape)
-    # model.adaptation(train_exp)
-    print(model)
+    print(len(train_exp.dataset))
     print("Start of experience: ", train_exp.current_experience)
     print("Current Classes: ", train_exp.classes_in_this_experience)
 
@@ -155,7 +180,3 @@ for train_exp, test_exp in zip(train_stream, test_stream):
     result = cl_strategy.eval(test_stream)
 
     results.append(result)
-# print(model)
-
-
-# self.mbatch

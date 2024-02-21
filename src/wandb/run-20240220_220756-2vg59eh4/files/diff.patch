@@ -1,0 +1,1452 @@
+diff --git a/src/__pycache__/dataset.cpython-310.pyc b/src/__pycache__/dataset.cpython-310.pyc
+index 1c2d780..0b37b29 100644
+Binary files a/src/__pycache__/dataset.cpython-310.pyc and b/src/__pycache__/dataset.cpython-310.pyc differ
+diff --git a/src/asdf.py b/src/asdf.py
+index 40e61c5..7eb497f 100644
+--- a/src/asdf.py
++++ b/src/asdf.py
+@@ -1,5 +1,65 @@
++import avalanche
+ import torch
++import itertools
++import pandas as pd
++import random
++import json
++import jsonlines
++import xml.etree.ElementTree as ET
++import argparse
++import torch.nn as nn
++import avalanche.evaluation.metrics as amet
+ 
+-a = torch.rand(2, 768, 512)
++from avalanche.benchmarks.generators import tensors_benchmark, dataset_benchmark
++from avalanche.training.templates import SupervisedTemplate
++from avalanche.logging import InteractiveLogger, WandBLogger
++from avalanche.training.plugins import EvaluationPlugin
++from transformers import BertModel
++from transformers import AutoTokenizer
++from transformers import BertConfig
++from modnets import BertForPreTraining
++from datasets import Dataset
++from torch.utils.data import TensorDataset
++from dataset import create_unlabeled_benchmark, create_endtask_benchmark
++from dataset_small import create_small_benchmark
++from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Sequence, Union
++import multiprocessing
++# torch.set_printoptions(profile="full")
+ 
+-print(a[:, None, :, :].shape)
++FLAGS = argparse.ArgumentParser()
++FLAGS.add_argument('--datasets', type=str, default='s2orc,realnews,pubmed',
++                   help='Names of datasets')
++FLAGS.add_argument('--model', type=str, default='bert-base-uncased',
++                   help='type of pretrained model')
++FLAGS.add_argument('--epoch', type=int, default=5)
++FLAGS.add_argument('--seed', type=int, default=1)
++args = FLAGS.parse_args()
++
++tokenizer = AutoTokenizer.from_pretrained(args.model)
++
++# benchmark_endtask = create_endtask_benchmark(args, tokenizer)
++# train_stream = benchmark_endtask.train_stream
++# test_stream = benchmark_endtask.test_stream
++# val_stream = benchmark_endtask.stream_factory("val", benchmark_endtask)
++# for train_exp, test_exp, val_exp in zip(train_stream, test_stream, val_stream):
++#     print(len(train_exp.dataset))
++#     print(tokenizer.decode(
++#         train_exp.dataset[0][0][0].type(torch.IntTensor).tolist()))
++
++benchmark_unlabeled = create_unlabeled_benchmark(args, tokenizer)
++train_stream = benchmark_unlabeled.train_stream
++test_stream = benchmark_unlabeled.test_stream
++val_stream = benchmark_unlabeled.stream_factory("val", benchmark_unlabeled)
++for train_exp, test_exp, val_exp in zip(train_stream, test_stream, val_stream):
++    print(len(train_exp.dataset))
++    print(train_exp.dataset[0])
++    print(test_exp.dataset[0])
++    print(val_exp.dataset[0])
++
++# benchmark_small = create_small_benchmark(args, tokenizer)
++# train_stream = benchmark_small.train_stream
++# test_stream = benchmark_small.test_stream
++# val_stream = benchmark_small.stream_factory("val", benchmark_small)
++# for train_exp, test_exp, val_exp in zip(train_stream, test_stream, val_stream):
++#     print(len(train_exp.dataset))
++#     print(train_exp.dataset[0])
+diff --git a/src/dataset.py b/src/dataset.py
+index f803844..b87c2f3 100644
+--- a/src/dataset.py
++++ b/src/dataset.py
+@@ -16,7 +16,7 @@ MASK_PROP = 0.15
+ def get_nsp_data(tokenizer, paragraphs):
+     label = []
+     nsp_data = []
+-    for paragraph in paragraphs:
++    for paragraph in tqdm(paragraphs):
+         for i in range(len(paragraph) - 1):
+             if random.random() < 0.5:
+                 label.append(1)
+@@ -32,8 +32,10 @@ def get_nsp_data(tokenizer, paragraphs):
+ 
+ def mask_nsp_data(tokenizer, paragraphs):
+     nsp_data, label = get_nsp_data(tokenizer, paragraphs)
++    original_input_ids = torch.stack(
++        [torch.Tensor(a['input_ids']) for a in nsp_data])
+ 
+-    for i, tokens in enumerate(nsp_data):
++    for i, tokens in tqdm(enumerate(nsp_data)):
+         for j, token in enumerate(tokens['input_ids']):
+             if token != 0 and token != 101 and token != 102:
+                 if random.random() < MASK_PROP:
+@@ -41,31 +43,35 @@ def mask_nsp_data(tokenizer, paragraphs):
+                         nsp_data[i]['input_ids'][j] = 103
+                     else:
+                         if random.random() < 0.5:
+-                            nsp_data[i]['input_ids'][j] = random.randint(
+-                                1, len(tokenizer.get_vocab()))
+-    return nsp_data, label
++                            r = random.randint(
++                                1000, len(tokenizer.get_vocab()) - 1)
++                            nsp_data[i]['input_ids'][j] = r
++    return nsp_data, original_input_ids, label
+ 
+ 
+ def get_paragraphs(data):
+     paragraphs = []
+     if data == 'realnews':
++        i = 0
+         with jsonlines.open('../data/unlabeled/realnews/realnews.jsonl') as f:
+-            for i, lin in enumerate(f):
++            for lin in tqdm(f):
+                 sentences = lin['text'].strip().replace(
+                     '\n', '').lower().split('. ')
+                 paragraph = []
+                 for sentence in sentences:
+                     if len(sentence) >= 2:
+                         paragraph.append(sentence)
++                        i += 1
+                 if len(paragraph) != 0:
+                     paragraphs.append(paragraph)
+-                if i == 2:
++
++                if i > 600000:
+                     break
+ 
+     elif data == 'pubmed':
+         pubmed = load_dataset('pubmed', streaming=True, trust_remote_code=True)
+         i = 0
+-        for entry in pubmed['train']:
++        for entry in tqdm(pubmed['train']):
+             abstracttext = entry['MedlineCitation']['Article']['Abstract']['AbstractText']
+             sentences = abstracttext.strip().replace('\n', '').lower().split('. ')
+             paragraph = []
+@@ -75,12 +81,13 @@ def get_paragraphs(data):
+                     i += 1
+             if len(paragraph) != 0:
+                 paragraphs.append(paragraph)
+-            if i > 10:
++
++            if i > 600000:
+                 break
+ 
+     elif data == 's2orc':
+         file_list = os.listdir('../data/unlabeled/s2orc')
+-        for file in file_list:
++        for file in tqdm(file_list):
+             with jsonlines.open('../data/unlabeled/s2orc/%s' % file) as f:
+                 i = 0
+                 for lin in f:
+@@ -94,8 +101,6 @@ def get_paragraphs(data):
+                                 paragraph.append(sentence)
+                         if len(paragraph) != 0:
+                             paragraphs.append(paragraph)
+-                        if i == 2:
+-                            break
+     return paragraphs
+ 
+ 
+@@ -103,267 +108,286 @@ def create_unlabeled_benchmark(args, tokenizer):
+     dat = args.datasets.split(',')
+     train_datasets = []
+     test_datasets = []
++    val_datasets = []
+ 
+     for task_label, dataset in enumerate(dat):
+-        paragraphs = get_paragraphs(dataset)
+-        nsp_data, label = mask_nsp_data(tokenizer, paragraphs)
++        path = "../datasets/%s/unlabeled" % (dataset)
++        dir = os.listdir(path)
++        if len(dir) == 0:
++            paragraphs = get_paragraphs(dataset)
++            nsp_data, original_input_ids, label = mask_nsp_data(
++                tokenizer, paragraphs)
++
++            input_ids = torch.stack(
++                [torch.Tensor(a['input_ids']).type(torch.IntTensor) for a in nsp_data])
++            token_type_ids = torch.stack(
++                [torch.Tensor(a['token_type_ids']).type(torch.IntTensor) for a in nsp_data])
++            attention_mask = torch.stack(
++                [torch.Tensor(a['attention_mask']).type(torch.IntTensor) for a in nsp_data])
++            label = torch.Tensor(label)
++            length = label.shape[0]
++
++            nsp_data = torch.stack(
++                [input_ids, original_input_ids, token_type_ids, attention_mask], dim=1)
++
++            idx = torch.randperm(length)
++            nsp_data = nsp_data[idx].view(nsp_data.size())
++            label = label[idx].view(label.size())
++
++            train_dataset = TensorDataset(
++                nsp_data[:int(length * 4 / 5)], label[:int(length * 4 / 5)])
++            val_dataset = TensorDataset(nsp_data[int(
++                length * 4 / 5):int(length * 9 / 10)], label[int(length * 4 / 5):int(length * 9 / 10)])
++            test_dataset = TensorDataset(
++                nsp_data[int(length * 9 / 10):], label[int(length * 9 / 10):])
++
++            torch.save(train_dataset, "%s/train.pt" % (path))
++            torch.save(val_dataset, "%s/val.pt" % (path))
++            torch.save(test_dataset, "%s/test.pt" % (path))
++
++        else:
++            train_dataset = torch.load("%s/train.pt" % (path))
++            val_dataset = torch.load("%s/val.pt" % (path))
++            test_dataset = torch.load("%s/test.pt" % (path))
++
++        train_dataset_with_task_label = make_classification_dataset(
++            train_dataset, task_labels=task_label)
++        val_dataset_with_task_label = make_classification_dataset(
++            val_dataset, task_labels=task_label)
++        test_dataset_with_task_label = make_classification_dataset(
++            test_dataset, task_labels=task_label)
++
++        train_datasets.append(train_dataset_with_task_label)
++        val_datasets.append(val_dataset_with_task_label)
++        test_datasets.append(test_dataset_with_task_label)
++
++    return dataset_benchmark(train_datasets, test_datasets, other_streams_datasets={"val": val_datasets})
++
++
++def preprocess_hyperpartisan(lin, tokenizer):
++    text = re.sub('<[^>]+>', '', lin['text'])
++    index = text.find('&#')
++    text = text.replace("..", "")
++    while index > -1:
++        idx_semicolon = index + 2
++        if index + 2 < len(text) and text[index+2].isdigit():
++            while idx_semicolon < len(text) and text[idx_semicolon] != ';':
++                idx_semicolon += 1
++                if index - idx_semicolon > 6:
++                    break
++            if text[index+2:idx_semicolon].isdigit():
++                unicode_decimal = int(text[index+2:idx_semicolon])
++                unicode = f'&#%d;' % unicode_decimal
++                text = text.replace(unicode,
++                                    chr(unicode_decimal))
++        index = text.find('&#')
++    text = text.replace("&amp;#160", " ")
++    text = text.replace("&amp;amp;", "&")
++    text = text.replace("&amp;gt;", ">")
++
++    tokens = tokenizer(text, padding='max_length',
++                       max_length=512, truncation='longest_first')
++    input_ids = torch.Tensor(tokens['input_ids'])
++    token_type_ids = torch.Tensor(tokens['token_type_ids'])
++    attention_mask = torch.Tensor(tokens['attention_mask'])
+ 
+-        input_ids = torch.stack(
+-            [torch.Tensor(a['input_ids']) for a in nsp_data])
+-        token_type_ids = torch.stack(
+-            [torch.Tensor(a['token_type_ids']) for a in nsp_data])
+-        attention_mask = torch.stack(
+-            [torch.Tensor(a['attention_mask']) for a in nsp_data])
+-        label = torch.Tensor(label)
+-        length = label.shape[0]
++    nsp_data = torch.stack(
++        [input_ids, token_type_ids, attention_mask], dim=0)
+ 
+-        nsp_data = torch.stack(
+-            [input_ids, token_type_ids, attention_mask], dim=1)
++    return nsp_data
+ 
+-        idx = torch.randperm(length)
+-        nsp_data = nsp_data[idx].view(nsp_data.size())
+-        label = label[idx].view(label.size())
+ 
+-        train_datasets.append(make_classification_dataset(
+-            TensorDataset(nsp_data[:int(length * 4 / 5)], label[:int(length * 4 / 5)]), task_labels=task_label))
+-        test_datasets.append(make_classification_dataset(
+-            TensorDataset(nsp_data[int(length * 4 / 5):], label[int(length * 4 / 5):]), task_labels=task_label))
++def preprocess(lin, tokenizer):
++    tokens = tokenizer(lin['text'], padding='max_length',
++                       max_length=512, truncation='longest_first')
++    input_ids = torch.Tensor(tokens['input_ids'])
++    token_type_ids = torch.Tensor(tokens['token_type_ids'])
++    attention_mask = torch.Tensor(tokens['attention_mask'])
+ 
+-    return dataset_benchmark(train_datasets, test_datasets)
++    nsp_data = torch.stack(
++        [input_ids, token_type_ids, attention_mask], dim=0)
++
++    return nsp_data
+ 
+ 
+ def create_endtask_benchmark(args, tokenizer):
+     dat = args.datasets.split(',')
+     train_datasets = []
+     test_datasets = []
++    val_datasets = []
+ 
+     for task_label, dataset in enumerate(dat):
++        path = "../datasets/%s/endtask" % (dataset)
++        dir = os.listdir(path)
+         if dataset == 'realnews':
+-            hyperpartisan = load_dataset('hyperpartisan_news_detection', 'bypublisher',
+-                                         trust_remote_code=True)
+-            str_to_idx = {'false': 0,
+-                          'true': 1}
+-
+-            label_train = []
+-            input_train = []
+-            for i, lin in enumerate(hyperpartisan['train']):
+-                text = re.sub('<[^>]+>', '', lin['text'])
+-                index = text.find('&#')
+-                text = text.replace("..", "")
+-                while index > -1:
+-                    idx_semicolon = index + 2
+-                    if index + 2 < len(text) and text[index+2].isdigit():
+-                        while idx_semicolon < len(text) and text[idx_semicolon] != ';':
+-                            idx_semicolon += 1
+-                            if index - idx_semicolon > 6:
+-                                break
+-                        if text[index+2:idx_semicolon].isdigit():
+-                            unicode_decimal = int(text[index+2:idx_semicolon])
+-                            unicode = f'&#%d;' % unicode_decimal
+-                            text = text.replace(unicode,
+-                                                chr(unicode_decimal))
+-                    index = text.find('&#')
+-                text = text.replace("&amp;#160", " ")
+-                text = text.replace("&amp;amp;", "&")
+-                text = text.replace("&amp;gt;", ">")
+-
+-                label_train.append(int(lin['hyperpartisan']))
+-
+-                tokens = tokenizer(text, padding='max_length',
+-                                   max_length=512, truncation='longest_first')
+-                input_ids = torch.Tensor(tokens['input_ids'])
+-                token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                nsp_data = torch.stack(
+-                    [input_ids, token_type_ids, attention_mask], dim=0)
+-                input_train.append(nsp_data)
+-
+-                if i == 20:
+-                    break
+-
+-            label_train = torch.Tensor(label_train)
+-            input_train = torch.stack(input_train)
+-
+-            label_test = []
+-            input_test = []
+-            for i, lin in enumerate(hyperpartisan['validation']):
+-                text = re.sub('<[^>]+>', '', lin['text'])
+-                index = text.find('&#')
+-                text = text.replace("..", "")
+-                while index > -1:
+-                    idx_semicolon = index + 2
+-                    if index + 2 < len(text) and text[index+2].isdigit():
+-                        while idx_semicolon < len(text) and text[idx_semicolon] != ';':
+-                            idx_semicolon += 1
+-                            if index - idx_semicolon > 6:
+-                                break
+-                        if text[index+2:idx_semicolon].isdigit():
+-                            unicode_decimal = int(text[index+2:idx_semicolon])
+-                            unicode = f'&#%d;' % unicode_decimal
+-                            text = text.replace(unicode,
+-                                                chr(unicode_decimal))
+-                    index = text.find('&#')
+-                text = text.replace("&amp;#160", " ")
+-                text = text.replace("&amp;amp;", "&")
+-                text = text.replace("&amp;gt;", ">")
+-
+-                label_test.append(int(lin['hyperpartisan']))
+-                tokens = tokenizer(text, padding='max_length',
+-                                   max_length=512, truncation='longest_first')
+-                input_ids = torch.Tensor(tokens['input_ids'])
+-                token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                nsp_data = torch.stack(
+-                    [input_ids, token_type_ids, attention_mask], dim=0)
+-                input_test.append(nsp_data)
+-
+-                if i == 5:
+-                    break
+-
+-            label_test = torch.Tensor(label_test)
+-            input_test = torch.stack(input_test)
+-
+-            train_datasets.append(make_classification_dataset(
+-                TensorDataset(input_train, label_train), task_labels=task_label))
+-            test_datasets.append(make_classification_dataset(
+-                TensorDataset(input_test, label_test), task_labels=task_label))
+-
+-        elif dataset == 'pubmed':
+-            str_to_idx = {'INHIBITOR': 0,
+-                          'ANTAGONIST': 1,
+-                          'AGONIST': 2,
+-                          'DOWNREGULATOR': 3,
+-                          'PRODUCT-OF': 4,
+-                          'SUBSTRATE': 5,
+-                          'INDIRECT-UPREGULATOR': 6,
+-                          'UPREGULATOR': 7,
+-                          'INDIRECT-DOWNREGULATOR': 8,
+-                          'ACTIVATOR': 9,
+-                          'AGONIST-ACTIVATOR': 10,
+-                          'AGONIST-INHIBITOR': 11,
+-                          'SUBSTRATE_PRODUCT-OF': 12
+-                          }
+-            label_train = []
+-            input_train = []
+-            with jsonlines.open('../data/endtask/chemprot/train.txt') as f:
+-                for lin in f:
+-                    label_train.append(str_to_idx[lin['label']])
+-
+-                    tokens = tokenizer(lin['text'], padding='max_length',
+-                                       max_length=512, truncation='longest_first')
+-                    input_ids = torch.Tensor(tokens['input_ids'])
+-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                    nsp_data = torch.stack(
+-                        [input_ids, token_type_ids, attention_mask], dim=0)
+-                    input_train.append(nsp_data)
+-            with jsonlines.open('../data/endtask/chemprot/dev.txt') as f:
+-                for lin in f:
+-                    label_train.append(str_to_idx[lin['label']])
+-
+-                    tokens = tokenizer(lin['text'], padding='max_length',
+-                                       max_length=512, truncation='longest_first')
+-                    input_ids = torch.Tensor(tokens['input_ids'])
+-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                    nsp_data = torch.stack(
+-                        [input_ids, token_type_ids, attention_mask], dim=0)
+-                    input_train.append(nsp_data)
+-
+-            label_train = torch.Tensor(label_train)
+-            input_train = torch.stack(input_train)
+-
+-            label_test = []
+-            input_test = []
+-
+-            with jsonlines.open('../data/endtask/chemprot/test.txt') as f:
+-                for lin in f:
+-                    label_test.append(str_to_idx[lin['label']])
+-
+-                    tokens = tokenizer(lin['text'], padding='max_length',
+-                                       max_length=512, truncation='longest_first')
+-                    input_ids = torch.Tensor(tokens['input_ids'])
+-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                    nsp_data = torch.stack(
+-                        [input_ids, token_type_ids, attention_mask], dim=0)
++            if len(dir) == 0:
++                hyperpartisan_train = load_dataset('hyperpartisan_news_detection', 'bypublisher',
++                                                   trust_remote_code=True, split='train')
++                hyperpartisan_test = load_dataset('hyperpartisan_news_detection', 'bypublisher',
++                                                  trust_remote_code=True, split='validation[0%:50%]')
++                hyperpartisan_val = load_dataset('hyperpartisan_news_detection', 'bypublisher',
++                                                 trust_remote_code=True, split='validation[50%:100%]')
++
++                label_test = []
++                input_test = []
++                for lin in tqdm(hyperpartisan_test):
++                    label_test.append(int(lin['hyperpartisan']))
++                    nsp_data = preprocess_hyperpartisan(lin, tokenizer)
+                     input_test.append(nsp_data)
+-
+-            label_test = torch.Tensor(label_test)
+-            input_test = torch.stack(input_test)
+-
+-            train_datasets.append(make_classification_dataset(
+-                TensorDataset(input_train, label_train), task_labels=task_label))
+-            test_datasets.append(make_classification_dataset(
+-                TensorDataset(input_test, label_test), task_labels=task_label))
+-
+-        elif dataset == 's2orc':
+-            str_to_idx = {'Background': 0,
+-                          'Uses': 1,
+-                          'CompareOrContrast': 2,
+-                          'Extends': 3,
+-                          'Motivation': 4,
+-                          'Future': 5
+-                          }
+-            label_train = []
+-            input_train = []
+-            with jsonlines.open('../data/endtask/citation_intent/train.txt') as f:
+-                for lin in f:
+-                    label_train.append(str_to_idx[lin['label']])
+-
+-                    tokens = tokenizer(lin['text'], padding='max_length',
+-                                       max_length=512, truncation='longest_first')
+-                    input_ids = torch.Tensor(tokens['input_ids'])
+-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                    nsp_data = torch.stack(
+-                        [input_ids, token_type_ids, attention_mask], dim=0)
+-                    input_train.append(nsp_data)
+-            with jsonlines.open('../data/endtask/citation_intent/dev.txt') as f:
+-                for lin in f:
+-                    label_train.append(str_to_idx[lin['label']])
+-
+-                    tokens = tokenizer(lin['text'], padding='max_length',
+-                                       max_length=512, truncation='longest_first')
+-                    input_ids = torch.Tensor(tokens['input_ids'])
+-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+-
+-                    nsp_data = torch.stack(
+-                        [input_ids, token_type_ids, attention_mask], dim=0)
++                label_test = torch.Tensor(label_test)
++                input_test = torch.stack(input_test)
++
++                label_train = []
++                input_train = []
++                for lin in tqdm(hyperpartisan_train):
++                    label_train.append(int(lin['hyperpartisan']))
++                    nsp_data = preprocess_hyperpartisan(lin, tokenizer)
+                     input_train.append(nsp_data)
++                label_train = torch.Tensor(label_train)
++                input_train = torch.stack(input_train)
++
++                label_val = []
++                input_val = []
++                for lin in tqdm(hyperpartisan_val):
++                    label_val.append(int(lin['hyperpartisan']))
++                    nsp_data = preprocess_hyperpartisan(lin, tokenizer)
++                    input_val.append(nsp_data)
++                label_val = torch.Tensor(label_val)
++                input_val = torch.stack(input_val)
++
++                train_dataset = TensorDataset(input_train, label_train)
++                test_dataset = TensorDataset(input_test, label_test)
++                val_dataset = TensorDataset(input_val, label_val)
++
++                torch.save(train_dataset, "%s/train.pt" % (path))
++                torch.save(val_dataset, "%s/val.pt" % (path))
++                torch.save(test_dataset, "%s/test.pt" % (path))
+ 
+-            label_train = torch.Tensor(label_train)
+-            input_train = torch.stack(input_train)
+-
+-            label_test = []
+-            input_test = []
+-            with jsonlines.open('../data/endtask/citation_intent/test.txt') as f:
+-                for lin in f:
+-                    label_test.append(str_to_idx[lin['label']])
+-
+-                    tokens = tokenizer(lin['text'], padding='max_length',
+-                                       max_length=512, truncation='longest_first')
+-                    input_ids = torch.Tensor(tokens['input_ids'])
+-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+-                    attention_mask = torch.Tensor(tokens['attention_mask'])
++            else:
++                train_dataset = torch.load("%s/train.pt" % (path))
++                val_dataset = torch.load("%s/val.pt" % (path))
++                test_dataset = torch.load("%s/test.pt" % (path))
+ 
+-                    nsp_data = torch.stack(
+-                        [input_ids, token_type_ids, attention_mask], dim=0)
+-                    input_test.append(nsp_data)
++        elif dataset == 'pubmed':
++            if len(dir) == 0:
++                str_to_idx = {'INHIBITOR': 0,
++                              'ANTAGONIST': 1,
++                              'AGONIST': 2,
++                              'DOWNREGULATOR': 3,
++                              'PRODUCT-OF': 4,
++                              'SUBSTRATE': 5,
++                              'INDIRECT-UPREGULATOR': 6,
++                              'UPREGULATOR': 7,
++                              'INDIRECT-DOWNREGULATOR': 8,
++                              'ACTIVATOR': 9,
++                              'AGONIST-ACTIVATOR': 10,
++                              'AGONIST-INHIBITOR': 11,
++                              'SUBSTRATE_PRODUCT-OF': 12
++                              }
++                label_train = []
++                input_train = []
++                with jsonlines.open('../data/endtask/chemprot/train.txt') as f:
++                    for lin in tqdm(f):
++                        label_train.append(str_to_idx[lin['label']])
++                        nsp_data = preprocess(lin, tokenizer)
++                        input_train.append(nsp_data)
++                label_train = torch.Tensor(label_train)
++                input_train = torch.stack(input_train)
++
++                label_val = []
++                input_val = []
++                with jsonlines.open('../data/endtask/chemprot/dev.txt') as f:
++                    for lin in tqdm(f):
++                        label_val.append(str_to_idx[lin['label']])
++                        nsp_data = preprocess(lin, tokenizer)
++                        input_val.append(nsp_data)
++                label_val = torch.Tensor(label_val)
++                input_val = torch.stack(input_val)
++
++                label_test = []
++                input_test = []
++                with jsonlines.open('../data/endtask/chemprot/test.txt') as f:
++                    for lin in tqdm(f):
++                        label_test.append(str_to_idx[lin['label']])
++                        nsp_data = preprocess(lin, tokenizer)
++                        input_test.append(nsp_data)
++                label_test = torch.Tensor(label_test)
++                input_test = torch.stack(input_test)
++
++                train_dataset = TensorDataset(input_train, label_train)
++                test_dataset = TensorDataset(input_test, label_test)
++                val_dataset = TensorDataset(input_val, label_val)
++
++                torch.save(train_dataset, "%s/train.pt" % (path))
++                torch.save(val_dataset, "%s/val.pt" % (path))
++                torch.save(test_dataset, "%s/test.pt" % (path))
+ 
+-            label_test = torch.Tensor(label_test)
+-            input_test = torch.stack(input_test)
++            else:
++                train_dataset = torch.load("%s/train.pt" % (path))
++                val_dataset = torch.load("%s/val.pt" % (path))
++                test_dataset = torch.load("%s/test.pt" % (path))
+ 
+-            train_datasets.append(make_classification_dataset(
+-                TensorDataset(input_train, label_train), task_labels=task_label))
+-            test_datasets.append(make_classification_dataset(
+-                TensorDataset(input_test, label_test), task_labels=task_label))
++        elif dataset == 's2orc':
++            if len(dir) == 0:
++                str_to_idx = {'Background': 0,
++                              'Uses': 1,
++                              'CompareOrContrast': 2,
++                              'Extends': 3,
++                              'Motivation': 4,
++                              'Future': 5
++                              }
++                label_train = []
++                input_train = []
++                with jsonlines.open('../data/endtask/citation_intent/train.txt') as f:
++                    for lin in tqdm(f):
++                        label_train.append(str_to_idx[lin['label']])
++                        nsp_data = preprocess(lin, tokenizer)
++                        input_train.append(nsp_data)
++                label_train = torch.Tensor(label_train)
++                input_train = torch.stack(input_train)
++
++                label_val = []
++                input_val = []
++                with jsonlines.open('../data/endtask/citation_intent/dev.txt') as f:
++                    for lin in tqdm(f):
++                        label_val.append(str_to_idx[lin['label']])
++                        nsp_data = preprocess(lin, tokenizer)
++                        input_val.append(nsp_data)
++                label_val = torch.Tensor(label_val)
++                input_val = torch.stack(input_val)
++
++                label_test = []
++                input_test = []
++                with jsonlines.open('../data/endtask/citation_intent/test.txt') as f:
++                    for lin in tqdm(f):
++                        label_test.append(str_to_idx[lin['label']])
++                        nsp_data = preprocess(lin, tokenizer)
++                        input_test.append(nsp_data)
++                label_test = torch.Tensor(label_test)
++                input_test = torch.stack(input_test)
++
++                train_dataset = TensorDataset(input_train, label_train)
++                test_dataset = TensorDataset(input_test, label_test)
++                val_dataset = TensorDataset(input_val, label_val)
++
++                torch.save(train_dataset, "%s/train.pt" % (path))
++                torch.save(val_dataset, "%s/val.pt" % (path))
++                torch.save(test_dataset, "%s/test.pt" % (path))
+ 
+-    return dataset_benchmark(train_datasets, test_datasets)
++            else:
++                train_dataset = torch.load("%s/train.pt" % (path))
++                val_dataset = torch.load("%s/val.pt" % (path))
++                test_dataset = torch.load("%s/test.pt" % (path))
++
++        train_dataset_with_task_label = make_classification_dataset(
++            train_dataset, task_labels=task_label)
++        test_dataset_with_task_label = make_classification_dataset(
++            test_dataset, task_labels=task_label)
++        val_dataset_with_task_label = make_classification_dataset(
++            val_dataset, task_labels=task_label)
++
++        train_datasets.append(train_dataset_with_task_label)
++        val_datasets.append(val_dataset_with_task_label)
++        test_datasets.append(test_dataset_with_task_label)
++
++    return dataset_benchmark(train_datasets, test_datasets, other_streams_datasets={"val": val_datasets})
+diff --git a/src/modnets/__pycache__/bert.cpython-310.pyc b/src/modnets/__pycache__/bert.cpython-310.pyc
+index 2ac5771..a58dc8d 100644
+Binary files a/src/modnets/__pycache__/bert.cpython-310.pyc and b/src/modnets/__pycache__/bert.cpython-310.pyc differ
+diff --git a/src/modnets/__pycache__/layers.cpython-310.pyc b/src/modnets/__pycache__/layers.cpython-310.pyc
+index bf80c67..8f11ea7 100644
+Binary files a/src/modnets/__pycache__/layers.cpython-310.pyc and b/src/modnets/__pycache__/layers.cpython-310.pyc differ
+diff --git a/src/modnets/bert.py b/src/modnets/bert.py
+index 4b2582a..e1b1925 100644
+--- a/src/modnets/bert.py
++++ b/src/modnets/bert.py
+@@ -165,7 +165,6 @@ class BertSelfAttention(am.MultiTaskModule):
+         past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
+         output_attentions: Optional[bool] = False,
+     ) -> Tuple[torch.Tensor]:
+-        print(hidden_states, task_label)
+         mixed_query_layer = self.query(hidden_states, task_label)
+ 
+         # If this is instantiated as a cross-attention module, the keys
+@@ -202,7 +201,6 @@ class BertSelfAttention(am.MultiTaskModule):
+         use_cache = past_key_value is not None
+         if self.is_decoder:
+             past_key_value = (key_layer, value_layer)
+-
+         # Take the dot product between "query" and "key" to get the raw attention scores.
+         attention_scores = torch.matmul(
+             query_layer, key_layer.transpose(-1, -2))
+@@ -212,7 +210,6 @@ class BertSelfAttention(am.MultiTaskModule):
+         if attention_mask is not None:
+             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
+             attention_scores = attention_scores + attention_mask
+-        print(attention_scores.shape, attention_mask)
+ 
+         # Normalize the attention scores to probabilities.
+         attention_probs = nn.functional.softmax(attention_scores, dim=-1)
+@@ -406,6 +403,7 @@ class BertLayer(am.MultiTaskModule):
+         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
+         self_attn_past_key_value = past_key_value[:
+                                                   2] if past_key_value is not None else None
++
+         self_attention_outputs = self.attention(
+             hidden_states,
+             attention_mask,
+@@ -482,7 +480,6 @@ class BertEncoder(am.MultiTaskModule):
+ 
+             layer_head_mask = head_mask[i] if head_mask is not None else None
+             past_key_value = past_key_values[i] if past_key_values is not None else None
+-
+             layer_outputs = layer_module(
+                 hidden_states,
+                 attention_mask,
+@@ -493,7 +490,6 @@ class BertEncoder(am.MultiTaskModule):
+                 past_key_value,
+                 output_attentions,
+             )
+-
+             hidden_states = layer_outputs[0]
+             if use_cache:
+                 next_decoder_cache += (layer_outputs[-1],)
+@@ -757,7 +753,6 @@ class BertModel(am.MultiTaskModule):
+             inputs_embeds=inputs_embeds,
+             past_key_values_length=past_key_values_length,
+         )
+-
+         encoder_outputs = self.encoder(
+             embedding_output,
+             attention_mask=extended_attention_mask,
+@@ -829,7 +824,6 @@ class BertForPreTraining(am.MultiTaskModule):
+         output_hidden_states: Optional[bool] = None,
+         return_dict: Optional[bool] = None,
+     ):
+-        print("!!!!", task_label)
+         outputs = self.bert(
+             input_ids,
+             attention_mask=attention_mask,
+@@ -848,3 +842,64 @@ class BertForPreTraining(am.MultiTaskModule):
+             sequence_output, pooled_output, task_label)
+ 
+         return prediction_scores, seq_relationship_score
++
++
++class BertForEndtask(am.MultiTaskModule):
++
++    def __init__(self, config, num_classes, mask_embedding=False):
++        super().__init__()
++        self.bert = BertModel(config, mask_embedding)
++        self.cls = MultiTaskClassifier(config.hidden_size, num_classes)
++
++    def adaptation(self, experience: CLExperience):
++        super().adaptation(experience)
++        for module in self.modules():
++            if 'adaptation' in dir(module) and module is not self:
++                module.adaptation(experience)
++
++    def forward(
++        self,
++        input_ids: Optional[torch.Tensor],
++        attention_mask: Optional[torch.Tensor],
++        token_type_ids: Optional[torch.Tensor],
++        task_label,
++        position_ids: Optional[torch.Tensor] = None,
++        head_mask: Optional[torch.Tensor] = None,
++        inputs_embeds: Optional[torch.Tensor] = None,
++        output_attentions: Optional[bool] = None,
++        output_hidden_states: Optional[bool] = None,
++        return_dict: Optional[bool] = None,
++    ):
++        return self.forward_single_task(input_ids, attention_mask, token_type_ids, task_label, position_ids, head_mask, inputs_embeds, output_attentions, output_hidden_states, return_dict)
++
++    def forward_single_task(
++        self,
++        input_ids: Optional[torch.Tensor],
++        attention_mask: Optional[torch.Tensor],
++        token_type_ids: Optional[torch.Tensor],
++        task_label,
++        position_ids: Optional[torch.Tensor] = None,
++        head_mask: Optional[torch.Tensor] = None,
++        inputs_embeds: Optional[torch.Tensor] = None,
++        output_attentions: Optional[bool] = None,
++        output_hidden_states: Optional[bool] = None,
++        return_dict: Optional[bool] = None,
++    ):
++        outputs = self.bert(
++            input_ids,
++            attention_mask=attention_mask,
++            token_type_ids=token_type_ids,
++            position_ids=position_ids,
++            task_label=task_label,
++            head_mask=head_mask,
++            inputs_embeds=inputs_embeds,
++            output_attentions=output_attentions,
++            output_hidden_states=output_hidden_states,
++            return_dict=return_dict,
++        )
++
++        pooled_output = outputs[1]
++        output = self.cls(
++            pooled_output, task_label)
++
++        return output
+diff --git a/src/modnets/layers.py b/src/modnets/layers.py
+index f880dcc..fe0e718 100644
+--- a/src/modnets/layers.py
++++ b/src/modnets/layers.py
+@@ -58,7 +58,7 @@ class PretrainingMultiTaskClassifier(am.MultiTaskModule):
+     def __init__(self, in_features, initial_out_features, bias=True):
+         super().__init__()
+         self.in_features = in_features
+-        self.bias = bias
++        self.bias_ = bias
+         self.initial_out_features = initial_out_features
+         self.classifiers = nn.ModuleDict({'0': nn.Linear(
+             in_features=in_features, out_features=initial_out_features, bias=bias)})
+@@ -69,7 +69,7 @@ class PretrainingMultiTaskClassifier(am.MultiTaskModule):
+ 
+         if str(task_label) not in self.classifiers:
+             self.classifiers[str(task_label)] = nn.Linear(
+-                in_features=self.in_features, out_features=self.initial_out_features, bias=self.bias)
++                in_features=self.in_features, out_features=self.initial_out_features, bias=self.bias_)
+ 
+     def forward_single_task(self, x: Tensor, task_label: int) -> Tensor:
+         return self.classifiers[str(task_label)](x)
+@@ -97,399 +97,6 @@ class MultiTaskClassifier(am.MultiTaskModule):
+         return self.classifiers[str(task_label)](x)
+ 
+ 
+-class ElementWiseMultiheadAttention(am.MultiTaskModule):
+-    """Modified multi-head attention with masks for weights."""
+-    __constants__ = ['batch_first']
+-    bias_k: Optional[torch.Tensor]
+-    bias_v: Optional[torch.Tensor]
+-
+-    def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False,
+-                 kdim=None, vdim=None, batch_first=False, device=None, dtype=None,
+-                 mask_init='1s', mask_scale=1e-2,
+-                 threshold_fn='binarizer', threshold=None) -> None:
+-        if embed_dim <= 0 or num_heads <= 0:
+-            raise ValueError(
+-                f"embed_dim and num_heads must be greater than 0,"
+-                f" got embed_dim={embed_dim} and num_heads={num_heads} instead"
+-            )
+-        factory_kwargs = {'device': device, 'dtype': dtype}
+-        super().__init__()
+-        self.embed_dim = embed_dim
+-        self.kdim = kdim if kdim is not None else embed_dim
+-        self.vdim = vdim if vdim is not None else embed_dim
+-        self._qkv_same_embed_dim = self.kdim == embed_dim and self.vdim == embed_dim
+-
+-        self.num_heads = num_heads
+-        self.dropout = dropout
+-        self.batch_first = batch_first
+-        self.head_dim = embed_dim // num_heads
+-        assert self.head_dim * \
+-            num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
+-
+-        self.mask_scale = mask_scale
+-        self.mask_init = mask_init
+-        self.threshold_fn = threshold_fn
+-
+-        if threshold is None:
+-            threshold = DEFAULT_THRESHOLD
+-        self.info = {
+-            'threshold_fn': threshold_fn,
+-            'threshold': threshold,
+-        }
+-
+-        # weight and bias are no longer Parameters
+-        if not self._qkv_same_embed_dim:
+-            self.q_proj_weight = Variable(torch.Tensor(
+-                embed_dim, embed_dim), requires_grad=False)
+-            self.k_proj_weight = Variable(torch.Tensor(
+-                embed_dim, self.kdim), requires_grad=False)
+-            self.v_proj_weight = Variable(torch.Tensor(
+-                embed_dim, self.vdim), requires_grad=False)
+-            self.q_proj_weight = self.q_proj_weight.to('cuda')
+-            self.k_proj_weight = self.k_proj_weight.to('cuda')
+-            self.v_proj_weight = self.v_proj_weight.to('cuda')
+-            self.in_proj_weight = None
+-        else:
+-            self.in_proj_weight = Variable(torch.Tensor(
+-                3 * embed_dim, embed_dim), requires_grad=False)
+-            self.in_proj_weight = self.in_proj_weight.to('cuda')
+-            self.q_proj_weight = None
+-            self.k_proj_weight = None
+-            self.v_proj_weight = None
+-
+-        if bias:
+-            self.in_proj_bias = Variable(torch.Tensor(
+-                3 * embed_dim), requires_grad=False)
+-            self.in_proj_bias = self.in_proj_bias.to('cuda')
+-        else:
+-            self.register_parameter('in_proj_bias', None)
+-        self.out_proj = ElementWiseLinear(
+-            embed_dim, embed_dim, bias=bias,
+-            mask_init=mask_init, mask_scale=mask_scale,
+-            threshold_fn=threshold_fn, threshold=threshold)
+-
+-        if add_bias_kv:
+-            self.bias_k = Variable(torch.Tensor(
+-                1, 1, embed_dim), requires_grad=False)
+-            self.bias_v = Variable(torch.Tensor(
+-                1, 1, embed_dim), requires_grad=False)
+-            self.bias_k = self.bias_k.to('cuda')
+-            self.bias_v = self.bias_v.to('cuda')
+-        else:
+-            self.bias_k = self.bias_v = None
+-
+-        self.add_zero_attn = add_zero_attn
+-
+-        self._reset_parameters()
+-
+-        # Initialize dictionary of masks
+-        self.masks = nn.ParameterDict({'0': self.make_elementwise_mask()})
+-
+-        self.tmpn = 0
+-
+-    def _reset_parameters(self):
+-        if self._qkv_same_embed_dim:
+-            xavier_uniform_(self.in_proj_weight)
+-        else:
+-            xavier_uniform_(self.q_proj_weight)
+-            xavier_uniform_(self.k_proj_weight)
+-            xavier_uniform_(self.v_proj_weight)
+-
+-        if self.in_proj_bias is not None:
+-            constant_(self.in_proj_bias, 0.)
+-            constant_(self.out_proj.bias, 0.)
+-        if self.bias_k is not None:
+-            xavier_normal_(self.bias_k)
+-        if self.bias_v is not None:
+-            xavier_normal_(self.bias_v)
+-
+-    def __setstate__(self, state):
+-        # Support loading old MultiheadAttention checkpoints generated by v1.1.0
+-        if '_qkv_same_embed_dim' not in state:
+-            state['_qkv_same_embed_dim'] = True
+-
+-        super().__setstate__(state)
+-
+-    def make_elementwise_mask(self):
+-        # Initialize real-valued mask weights.
+-        if not self._qkv_same_embed_dim:
+-            q_proj_mask_real = self.q_proj_weight.data.new(
+-                self.q_proj_weight.size())
+-            k_proj_mask_real = self.k_proj_weight.data.new(
+-                self.k_proj_weight.size())
+-            v_proj_mask_real = self.v_proj_weight.data.new(
+-                self.v_proj_weight.size())
+-
+-            if self.mask_init == '1s':
+-                q_proj_mask_real.fill_(self.mask_scale)
+-                k_proj_mask_real.fill_(self.mask_scale)
+-                v_proj_mask_real.fill_(self.mask_scale)
+-            elif self.mask_init == 'uniform':
+-                q_proj_mask_real.uniform_(-1 *
+-                                          self.mask_scale, self.mask_scale)
+-                k_proj_mask_real.uniform_(-1 *
+-                                          self.mask_scale, self.mask_scale)
+-                v_proj_mask_real.uniform_(-1 *
+-                                          self.mask_scale, self.mask_scale)
+-            return Parameter(q_proj_mask_real), Parameter(k_proj_mask_real), Parameter(v_proj_mask_real)
+-
+-        else:
+-            in_proj_mask_real = self.in_proj_weight.data.new(
+-                self.in_proj_weight.size())
+-
+-            if self.mask_init == '1s':
+-                in_proj_mask_real.fill_(self.mask_scale)
+-            elif self.mask_init == 'uniform':
+-                in_proj_mask_real.uniform_(-1 *
+-                                           self.mask_scale, self.mask_scale)
+-
+-            return Parameter(in_proj_mask_real)
+-
+-    def adaptation(self, experience: CLExperience):
+-        super().adaptation(experience)
+-        task_label = experience.task_label
+-
+-        if str(task_label) not in self.masks:
+-            self.masks[str(task_label)] = self.make_elementwise_mask()
+-
+-    def forward(self, query: Tensor,
+-                key: Tensor,
+-                value: Tensor,
+-                task_label: int,
+-                key_padding_mask: Optional[Tensor] = None,
+-                need_weights: bool = True,
+-                attn_mask: Optional[Tensor] = None,
+-                average_attn_weights: bool = True,
+-                is_causal: bool = False) -> Tensor:
+-
+-        return self.forward_single_task(query, key, value, task_label,
+-                                        key_padding_mask=key_padding_mask, need_weights=need_weights,
+-                                        attn_mask=attn_mask, average_attn_weights=average_attn_weights, is_causal=is_causal)
+-
+-    def forward_single_task(
+-            self,
+-            query: Tensor,
+-            key: Tensor,
+-            value: Tensor,
+-            task_label: int,
+-            key_padding_mask: Optional[Tensor] = None,
+-            need_weights: bool = True,
+-            attn_mask: Optional[Tensor] = None,
+-            average_attn_weights: bool = True,
+-            is_causal: bool = False) -> Tuple[Tensor, Optional[Tensor]]:
+-
+-        # Apply threshold function and multiply to weight
+-        mask_real = self.masks[str(task_label)]
+-        if not self._qkv_same_embed_dim:
+-            if self.threshold_fn == 'binarizer':
+-                q_proj_mask_thresholded = Binarizer.apply(mask_real[0])
+-                k_proj_mask_thresholded = Binarizer.apply(mask_real[1])
+-                v_proj_mask_thresholded = Binarizer.apply(mask_real[2])
+-            elif self.threshold_fn == 'ternarizer':
+-                q_proj_mask_thresholded = Ternarizer.apply(mask_real[0])
+-                k_proj_mask_thresholded = Ternarizer.apply(mask_real[1])
+-                v_proj_mask_thresholded = Ternarizer.apply(mask_real[2])
+-
+-            q_proj_weight_thresholded = q_proj_mask_thresholded * self.q_proj_weight
+-            k_proj_weight_thresholded = k_proj_mask_thresholded * self.k_proj_weight
+-            v_proj_weight_thresholded = v_proj_mask_thresholded * self.v_proj_weight
+-
+-        else:
+-            if self.threshold_fn == 'binarizer':
+-                in_proj_mask_thresholded = Binarizer.apply(mask_real)
+-            elif self.threshold_fn == 'ternarizer':
+-                in_proj_mask_thresholded = Ternarizer.apply(mask_real)
+-
+-            in_proj_weight_thresholded = in_proj_mask_thresholded * self.in_proj_weight
+-
+-        out_proj_weight = self.out_proj.get_weight(task_label)
+-        out_proj_bias = self.out_proj.bias
+-
+-        # self.tmpn += 1
+-        # if self.tmpn == 60:
+-        #     print('multihead', torch.sum(in_proj_mask_thresholded) /
+-        #           (self.in_proj_weight.shape[0] * self.in_proj_weight.shape[1]))
+-        #     self.tmpn = 0
+-
+-        why_not_fast_path = ''
+-        if ((attn_mask is not None and torch.is_floating_point(attn_mask))
+-           or (key_padding_mask is not None) and torch.is_floating_point(key_padding_mask)):
+-            why_not_fast_path = "floating-point masks are not supported for fast path."
+-
+-        is_batched = query.dim() == 3
+-
+-        key_padding_mask = F._canonical_mask(
+-            mask=key_padding_mask,
+-            mask_name="key_padding_mask",
+-            other_type=F._none_or_dtype(attn_mask),
+-            other_name="attn_mask",
+-            target_type=query.dtype
+-        )
+-
+-        attn_mask = F._canonical_mask(
+-            mask=attn_mask,
+-            mask_name="attn_mask",
+-            other_type=None,
+-            other_name="",
+-            target_type=query.dtype,
+-            check_other=False,
+-        )
+-
+-        if not is_batched:
+-            why_not_fast_path = f"input not batched; expected query.dim() of 3 but got {query.dim()}"
+-        elif query is not key or key is not value:
+-            # When lifting this restriction, don't forget to either
+-            # enforce that the dtypes all match or test cases where
+-            # they don't!
+-            why_not_fast_path = "non-self attention was used (query, key, and value are not the same Tensor)"
+-        elif self.in_proj_bias is not None and query.dtype != self.in_proj_bias.dtype:
+-            why_not_fast_path = f"dtypes of query ({query.dtype}) and self.in_proj_bias ({self.in_proj_bias.dtype}) don't match"
+-        elif self.in_proj_weight is None:
+-            why_not_fast_path = "in_proj_weight was None"
+-        elif query.dtype != self.in_proj_weight.dtype:
+-            # this case will fail anyway, but at least they'll get a useful error message.
+-            why_not_fast_path = f"dtypes of query ({query.dtype}) and self.in_proj_weight ({self.in_proj_weight.dtype}) don't match"
+-        elif self.training:
+-            why_not_fast_path = "training is enabled"
+-        elif (self.num_heads % 2) != 0:
+-            why_not_fast_path = "self.num_heads is not even"
+-        elif not self.batch_first:
+-            why_not_fast_path = "batch_first was not True"
+-        elif self.bias_k is not None:
+-            why_not_fast_path = "self.bias_k was not None"
+-        elif self.bias_v is not None:
+-            why_not_fast_path = "self.bias_v was not None"
+-        elif self.add_zero_attn:
+-            why_not_fast_path = "add_zero_attn was enabled"
+-        elif not self._qkv_same_embed_dim:
+-            why_not_fast_path = "_qkv_same_embed_dim was not True"
+-        elif query.is_nested and (key_padding_mask is not None or attn_mask is not None):
+-            why_not_fast_path = "supplying both src_key_padding_mask and src_mask at the same time \
+-                                 is not supported with NestedTensor input"
+-        elif torch.is_autocast_enabled():
+-            why_not_fast_path = "autocast is enabled"
+-
+-        if not why_not_fast_path:
+-            tensor_args = (
+-                query,
+-                key,
+-                value,
+-                in_proj_weight_thresholded,
+-                self.in_proj_bias,
+-                out_proj_weight,
+-                out_proj_bias,
+-            )
+-            # We have to use list comprehensions below because TorchScript does not support
+-            # generator expressions.
+-            if torch.overrides.has_torch_function(tensor_args):
+-                why_not_fast_path = "some Tensor argument has_torch_function"
+-            elif _is_make_fx_tracing():
+-                why_not_fast_path = "we are running make_fx tracing"
+-            elif not all(_check_arg_device(x) for x in tensor_args):
+-                why_not_fast_path = ("some Tensor argument's device is neither one of "
+-                                     f"cpu, cuda or {torch.utils.backend_registration._privateuse1_backend_name}")
+-            elif torch.is_grad_enabled() and any(_arg_requires_grad(x) for x in tensor_args):
+-                why_not_fast_path = ("grad is enabled and at least one of query or the "
+-                                     "input/output projection weights or biases requires_grad")
+-            if not why_not_fast_path:
+-                merged_mask, mask_type = self.merge_masks(
+-                    attn_mask, key_padding_mask, query)
+-
+-                if self.in_proj_bias is not None and self.in_proj_weight is not None:
+-                    return torch._native_multi_head_attention(
+-                        query,
+-                        key,
+-                        value,
+-                        self.embed_dim,
+-                        self.num_heads,
+-                        in_proj_weight_thresholded,
+-                        self.in_proj_bias,
+-                        out_proj_weight,
+-                        out_proj_bias,
+-                        merged_mask,
+-                        need_weights,
+-                        average_attn_weights,
+-                        mask_type)
+-
+-        any_nested = query.is_nested or key.is_nested or value.is_nested
+-        assert not any_nested, ("MultiheadAttention does not support NestedTensor outside of its fast path. " +
+-                                f"The fast path was not hit because {why_not_fast_path}")
+-
+-        if self.batch_first and is_batched:
+-            # make sure that the transpose op does not affect the "is" property
+-            if key is value:
+-                if query is key:
+-                    query = key = value = query.transpose(1, 0)
+-                else:
+-                    query, key = (x.transpose(1, 0) for x in (query, key))
+-                    value = key
+-            else:
+-                query, key, value = (x.transpose(1, 0)
+-                                     for x in (query, key, value))
+-
+-        if not self._qkv_same_embed_dim:
+-            attn_output, attn_output_weights = F.multi_head_attention_forward(
+-                query, key, value, self.embed_dim, self.num_heads,
+-                in_proj_weight_thresholded, self.in_proj_bias,
+-                self.bias_k, self.bias_v, self.add_zero_attn,
+-                self.dropout, out_proj_weight, out_proj_bias,
+-                training=self.training,
+-                key_padding_mask=key_padding_mask, need_weights=need_weights,
+-                attn_mask=attn_mask,
+-                use_separate_proj_weight=True,
+-                q_proj_weight=q_proj_weight_thresholded, k_proj_weight=k_proj_weight_thresholded,
+-                v_proj_weight=v_proj_weight_thresholded,
+-                average_attn_weights=average_attn_weights,
+-                is_causal=is_causal)
+-        else:
+-            attn_output, attn_output_weights = F.multi_head_attention_forward(
+-                query, key, value, self.embed_dim, self.num_heads,
+-                in_proj_weight_thresholded, self.in_proj_bias,
+-                self.bias_k, self.bias_v, self.add_zero_attn,
+-                self.dropout, out_proj_weight, out_proj_bias,
+-                training=self.training,
+-                key_padding_mask=key_padding_mask,
+-                need_weights=need_weights,
+-                attn_mask=attn_mask,
+-                average_attn_weights=average_attn_weights,
+-                is_causal=is_causal)
+-        if self.batch_first and is_batched:
+-            return attn_output.transpose(1, 0), attn_output_weights
+-        else:
+-            return attn_output, attn_output_weights
+-
+-    def merge_masks(self, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor],
+-                    query: Tensor) -> Tuple[Optional[Tensor], Optional[int]]:
+-        mask_type: Optional[int] = None
+-        merged_mask: Optional[Tensor] = None
+-
+-        if key_padding_mask is not None:
+-            mask_type = 1
+-            merged_mask = key_padding_mask
+-
+-        if attn_mask is not None:
+-            # In this branch query can't be a nested tensor, so it has a shape
+-            batch_size, seq_len, _ = query.shape
+-            mask_type = 2
+-
+-            # Always expands attn_mask to 4D
+-            if attn_mask.dim() == 3:
+-                attn_mask_expanded = attn_mask.view(
+-                    batch_size, -1, seq_len, seq_len)
+-            else:  # attn_mask.dim() == 2:
+-                attn_mask_expanded = attn_mask.view(1, 1, seq_len, seq_len).expand(
+-                    batch_size, self.num_heads, -1, -1)
+-            merged_mask = attn_mask_expanded
+-
+-            if key_padding_mask is not None:
+-                key_padding_mask_expanded = key_padding_mask.view(
+-                    batch_size, 1, 1, seq_len).expand(-1, self.num_heads, -1, -1)
+-                merged_mask = attn_mask_expanded + key_padding_mask_expanded
+-
+-        # no attn_mask and no key_padding_mask, returns None, None
+-        return merged_mask, mask_type
+-
+-
+ class ElementWiseLinear(am.MultiTaskModule):
+     """Modified linear layer."""
+ 
+@@ -532,6 +139,11 @@ class ElementWiseLinear(am.MultiTaskModule):
+     def forward_single_task(self, x: Tensor, task_label: int) -> Tensor:
+         # Get binarized/ternarized mask from real-valued mask.
+         weight_thresholded = self.get_weight(task_label)
++        self.tmpn += 1
++        if self.tmpn == 1000:
++            print('linear', torch.sum(self.mask_thresholded) /
++                  (self.weight.shape[0] * self.weight.shape[1]))
++            self.tmpn = 0
+         # Get output using modified weight.
+         return F.linear(x, weight_thresholded, self.bias)
+ 
+@@ -548,11 +160,13 @@ class ElementWiseLinear(am.MultiTaskModule):
+     def get_weight(self, task_label):
+         # For multi-head attention module
+         if self.threshold_fn == 'binarizer':
+-            mask_thresholded = Binarizer.apply(self.masks[str(task_label)])
++            self.mask_thresholded = Binarizer.apply(
++                self.masks[str(task_label)])
+         elif self.threshold_fn == 'ternarizer':
+-            mask_thresholded = Ternarizer.apply(self.masks[str(task_label)])
++            self.mask_thresholded = Ternarizer.apply(
++                self.masks[str(task_label)])
+ 
+-        weight_thresholded = mask_thresholded * self.weight
++        weight_thresholded = self.mask_thresholded * self.weight
+ 
+         return weight_thresholded
+ 
+diff --git a/src/temp.py b/src/temp.py
+deleted file mode 100644
+index 394c161..0000000
+--- a/src/temp.py
++++ /dev/null
+@@ -1,161 +0,0 @@
+-import avalanche
+-import torch
+-import itertools
+-import pandas as pd
+-import random
+-import jsonlines
+-import xml.etree.ElementTree as ET
+-import argparse
+-import torch.nn as nn
+-import avalanche.evaluation.metrics as amet
+-
+-from avalanche.benchmarks.generators import tensors_benchmark, dataset_benchmark
+-from avalanche.training.templates import SupervisedTemplate
+-from avalanche.logging import InteractiveLogger, WandBLogger
+-from avalanche.training.plugins import EvaluationPlugin
+-from transformers import BertModel
+-from transformers import AutoTokenizer
+-from transformers import BertConfig
+-from modnets import BertForPreTraining
+-from datasets import Dataset
+-from torch.utils.data import TensorDataset
+-from dataset import create_unlabeled_benchmark, create_endtask_benchmark
+-from typing import Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Sequence, Union
+-
+-FLAGS = argparse.ArgumentParser()
+-FLAGS.add_argument('--datasets', type=str, default='s2orc',
+-                   help='Names of datasets')
+-FLAGS.add_argument('--model', type=str, default='bert-base-uncased',
+-                   help='type of pretrained model')
+-FLAGS.add_argument('--epoch', type=int, default=1)
+-args = FLAGS.parse_args()
+-
+-
+-class PiggybackStrategy(SupervisedTemplate):
+-    def __init__(self, *args, **kwargs):
+-        super().__init__(*args, **kwargs)
+-
+-    def train(self, experiences: Any | Iterable, eval_streams: Sequence[Any | Iterable] | None = None, **kwargs):
+-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+-        return super().train(experiences, eval_streams, **kwargs)
+-
+-    def forward(self):
+-        # input_ids = d[0, :]
+-        # token_type_ids = d[1, :]
+-        # attention_mask = d[2, :]
+-        input_ids = self.mb_x[:, 0, :].type(torch.IntTensor).to('cuda')
+-        token_type_ids = self.mb_x[:, 1, :].type(torch.IntTensor).to('cuda')
+-        attention_mask = self.mb_x[:, 2, :].type(torch.IntTensor).to('cuda')
+-        print(input_ids.shape, token_type_ids.shape,
+-              attention_mask.shape, self.mb_task_id)
+-        return self.model(input_ids, token_type_ids, attention_mask, self.mb_task_id)
+-
+-    def backward(self):
+-        super().backward()
+-
+-        for module in self.model.modules():
+-            if 'ElementWiseConv2d' in str(type(module)) or 'ElementWiseLinear' in str(type(module)):
+-                abs_weights = module.weight.data.abs()
+-                for i in range(len(module.masks)):
+-                    if module.masks[str(i)].grad is not None:
+-                        module.masks[str(i)].grad.data.div_(abs_weights.mean())
+-
+-            elif 'ElementWiseMultiheadAttention' in str(type(module)):
+-                if not module._qkv_same_embed_dim:
+-                    abs_q_proj_weights = module.q_proj_weight.data.abs()
+-                    abs_k_proj_weights = module.k_proj_weight.data.abs()
+-                    abs_v_proj_weights = module.v_proj_weight.data.abs()
+-                    for i in range(len(module.masks)):
+-                        if module.masks[str(i)][0].grad is not None:
+-                            module.masks[str(i)][0].grad.data.div_(
+-                                abs_q_proj_weights.mean())
+-                            module.masks[str(i)][1].grad.data.div_(
+-                                abs_k_proj_weights.mean())
+-                            module.masks[str(i)][2].grad.data.div_(
+-                                abs_v_proj_weights.mean())
+-                else:
+-                    abs_in_proj_weights = module.in_proj_weight.data.abs()
+-                    for i in range(len(module.masks)):
+-                        if module.masks[str(i)].grad is not None:
+-                            module.masks[str(i)].grad.data.div_(
+-                                abs_in_proj_weights.mean())
+-
+-
+-tokenizer = AutoTokenizer.from_pretrained(args.model)
+-model_pretrained = BertModel.from_pretrained(args.model)
+-
+-if args.model == 'bert-base-uncased':
+-    config = BertConfig()
+-model = BertForPreTraining(config)
+-
+-criterion = nn.CrossEntropyLoss()
+-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+-
+-interactive_logger = InteractiveLogger()
+-# wandb_logger = WandBLogger(
+-#     project_name="piggyback_ViT",
+-#     run_name="piggyback_%s" % (args.datasets),
+-#     path="../checkpoint",
+-#     config=vars(args)
+-# )
+-eval_plugin = EvaluationPlugin(
+-    amet.accuracy_metrics(
+-        epoch=True,
+-        experience=True,
+-        stream=True
+-    ),
+-    amet.loss_metrics(
+-        epoch=True,
+-        experience=True,
+-        stream=True
+-    ),
+-    loggers=[interactive_logger]
+-)
+-cl_strategy = PiggybackStrategy(model,
+-                                optimizer,
+-                                criterion,
+-                                train_mb_size=128,
+-                                train_epochs=args.epoch,
+-                                eval_mb_size=128,
+-                                device='cuda',
+-                                evaluator=eval_plugin,
+-                                eval_every=1)
+-
+-# benchmark_endtask = create_endtask_benchmark(args, tokenizer)
+-benchmark_unlabeled = create_unlabeled_benchmark(args, tokenizer)
+-
+-# train_stream = benchmark_endtask.train_stream
+-# test_stream = benchmark_endtask.test_stream
+-train_stream = benchmark_unlabeled.train_stream
+-test_stream = benchmark_unlabeled.test_stream
+-
+-torch.set_printoptions(profile="full")
+-
+-results = []
+-for train_exp, test_exp in zip(train_stream, test_stream):
+-    # d = train_exp.dataset[0][0]
+-    # task_label = train_exp.dataset[0][2]
+-    # input_ids = d[0, :]
+-    # token_type_ids = d[1, :]
+-    # attention_mask = d[2, :]
+-    # a, b = model(input_ids=input_ids[None, :].type(torch.IntTensor), token_type_ids=token_type_ids[None, :].type(torch.IntTensor),
+-    #              attention_mask=attention_mask[None, :].type(torch.IntTensor), task_label=task_label)
+-    # print(a.shape, b.shape)
+-    # model.adaptation(train_exp)
+-    print(model)
+-    print("Start of experience: ", train_exp.current_experience)
+-    print("Current Classes: ", train_exp.classes_in_this_experience)
+-
+-    cl_strategy.train(train_exp, eval_streams=[test_exp])
+-    print('Training completed')
+-
+-    # check(model, model_pretrained)
+-
+-    print('Computing accuracy on the test set')
+-    result = cl_strategy.eval(test_stream)
+-
+-    results.append(result)
+-# print(model)
+-
+-
+-# self.mbatch

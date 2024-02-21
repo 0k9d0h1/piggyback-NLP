@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/0k9d0h1/piggyback/piggyback-NLP/src/temp.py", line 146, in <module>
+    cl_strategy = PiggybackStrategy(model,
+  File "/home/0k9d0h1/piggyback/piggyback-NLP/src/temp.py", line 37, in __init__
+    super().__init__(*args, **kwargs)
+  File "/home/0k9d0h1/anaconda3/envs/DHK/lib/python3.10/site-packages/avalanche/training/templates/common_templates.py", line 123, in __init__
+    BaseSGDTemplate.__init__(
+  File "/home/0k9d0h1/anaconda3/envs/DHK/lib/python3.10/site-packages/avalanche/training/templates/base_sgd.py", line 155, in __init__
+    self.loss: Tensor = self._make_empty_loss()
+  File "/home/0k9d0h1/anaconda3/envs/DHK/lib/python3.10/site-packages/avalanche/training/templates/base_sgd.py", line 457, in _make_empty_loss
+    return torch.zeros(1, device=self.device)
+  File "/home/0k9d0h1/anaconda3/envs/DHK/lib/python3.10/site-packages/torch/cuda/__init__.py", line 298, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: Found no NVIDIA driver on your system. Please check that you have an NVIDIA GPU and installed a driver from http://www.nvidia.com/Download/index.aspx

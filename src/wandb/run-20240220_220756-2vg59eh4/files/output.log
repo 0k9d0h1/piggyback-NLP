@@ -1,0 +1,986 @@
+BertForPreTraining(
+  (bert): BertModel(
+    (embeddings): BertEmbeddings(
+      (word_embeddings): Embedding(30522, 768, padding_idx=0)
+      (position_embeddings): Embedding(512, 768)
+      (token_type_embeddings): Embedding(2, 768)
+      (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+      (dropout): Dropout(p=0.1, inplace=False)
+    )
+    (encoder): BertEncoder(
+      (layer): ModuleList(
+        (0-11): 12 x BertLayer(
+          (attention): BertAttention(
+            (self): BertSelfAttention(
+              (query): ElementWiseLinear(in_features=768, out_features=768)
+              (key): ElementWiseLinear(in_features=768, out_features=768)
+              (value): ElementWiseLinear(in_features=768, out_features=768)
+              (dropout): Dropout(p=0.1, inplace=False)
+            )
+            (output): BertSelfOutput(
+              (dense): ElementWiseLinear(in_features=768, out_features=768)
+              (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+              (dropout): Dropout(p=0.1, inplace=False)
+            )
+          )
+          (intermediate): BertIntermediate(
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)
+            (intermediate_act_fn): GELU(approximate='none')
+          )
+          (output): BertOutput(
+            (dense): ElementWiseLinear(in_features=3072, out_features=768)
+            (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+            (dropout): Dropout(p=0.1, inplace=False)
+          )
+        )
+      )
+    )
+    (pooler): BertPooler(
+      (dense): ElementWiseLinear(in_features=768, out_features=768)
+      (activation): Tanh()
+    )
+  )
+  (cls): BertPreTrainingHeads(
+    (predictions): BertLMPredictionHead(
+      (transform): BertPredictionHeadTransform(
+        (dense): PretrainingMultiTaskClassifier(
+          (classifiers): ModuleDict(
+            (0): Linear(in_features=768, out_features=768, bias=True)
+          )
+        )
+        (transform_act_fn): GELU(approximate='none')
+        (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+      )
+      (decoder): PretrainingMultiTaskClassifier(
+        (classifiers): ModuleDict(
+          (0): Linear(in_features=768, out_features=30522, bias=False)
+        )
+      )
+    )
+    (seq_relationship): PretrainingMultiTaskClassifier(
+      (classifiers): ModuleDict(
+        (0): Linear(in_features=768, out_features=2, bias=True)
+      )
+    )
+  )
+)
+Start of experience:  0
+Current Classes:  [0.0, 1.0]
+-- >> Start of training phase << --
+-- >> Start of eval phase << --
+-- Starting eval on experience 0 (Task 0) from val stream --
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.01s/it]
+> Eval on experience 0 (Task 0) from val stream ended.
+	Loss_Exp/eval_phase/val_stream/Task000/Exp000 = 10.9953
+	MLLoss_Exp/eval_phase/val_stream/Task000/Exp000 = 10.4065
+	NSPAcc_Exp/eval_phase/val_stream/Task000/Exp000 = 0.8182
+	NSPLoss_Exp/eval_phase/val_stream/Task000/Exp000 = 0.5888
+	Perplexity_Exp/eval_phase/val_stream/Task000/Exp000 = 33072.3273
+-- >> End of eval phase << --
+	Loss_Stream/eval_phase/val_stream/Task000 = 10.9953
+	MLLoss_Stream/eval_phase/val_stream/Task000 = 10.4065
+	NSPAcc_Stream/eval_phase/val_stream/Task000 = 0.8182
+	NSPLoss_Stream/eval_phase/val_stream/Task000 = 0.5888
+	Perplexity_Stream/eval_phase/val_stream/Task000 = 33072.3273
+full_name: Loss_Exp/eval_phase/val_stream/Task000/Exp000
+best: None
+
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.66it/s]
+Epoch 0 ended.
+	Loss_Epoch/train_phase/train_stream/Task000 = 10.8092
+	MLLoss_Epoch/train_phase/train_stream/Task000 = 10.2867
+	NSPAcc_Epoch/train_phase/train_stream/Task000 = 0.7882
+	NSPLoss_Epoch/train_phase/train_stream/Task000 = 0.5225
+	Perplexity_Epoch/train_phase/train_stream/Task000 = 29466.5307
+-- >> Start of eval phase << --
+-- Starting eval on experience 0 (Task 0) from val stream --
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  6.24it/s]
+> Eval on experience 0 (Task 0) from val stream ended.
+	Loss_Exp/eval_phase/val_stream/Task000/Exp000 = 10.5570
+	MLLoss_Exp/eval_phase/val_stream/Task000/Exp000 = 9.9565
+	NSPAcc_Exp/eval_phase/val_stream/Task000/Exp000 = 0.8182
+	NSPLoss_Exp/eval_phase/val_stream/Task000/Exp000 = 0.6005
+	Perplexity_Exp/eval_phase/val_stream/Task000/Exp000 = 21088.6353
+-- >> End of eval phase << --
+	Loss_Stream/eval_phase/val_stream/Task000 = 10.5570
+	MLLoss_Stream/eval_phase/val_stream/Task000 = 9.9565
+	NSPAcc_Stream/eval_phase/val_stream/Task000 = 0.8182
+	NSPLoss_Stream/eval_phase/val_stream/Task000 = 0.6005
+	Perplexity_Stream/eval_phase/val_stream/Task000 = 21088.6353
+full_name: Loss_Exp/eval_phase/val_stream/Task000/Exp000
+best: 10.556977272033691
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+Epoch 1 ended.
+	Loss_Epoch/train_phase/train_stream/Task000 = 10.0487
+	MLLoss_Epoch/train_phase/train_stream/Task000 = 9.5626
+	NSPAcc_Epoch/train_phase/train_stream/Task000 = 0.7647
+	NSPLoss_Epoch/train_phase/train_stream/Task000 = 0.4862
+	Perplexity_Epoch/train_phase/train_stream/Task000 = 14393.5282
+-- >> Start of eval phase << --
+	Perplexity_Exp/eval_phase/val_stream/Task000/Exp000 = 13431.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+-- >> End of eval phase << --
+	Loss_Stream/eval_phase/val_stream/Task000 = 10.1249
+	MLLoss_Stream/eval_phase/val_stream/Task000 = 9.5053
+	NSPAcc_Stream/eval_phase/val_stream/Task000 = 0.8182
+	NSPLoss_Stream/eval_phase/val_stream/Task000 = 0.6195
+	Perplexity_Stream/eval_phase/val_stream/Task000 = 13431.1126
+full_name: Loss_Exp/eval_phase/val_stream/Task000/Exp000
+best: 10.124853134155273
+ 33%|██████████████████████████████████████████████████████▎                                                                                                            | 2/6 [00:01<00:02,  1.64it/s]
+	NSPAcc_Epoch/train_phase/train_stream/Task000 = 0.752913431.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+	NSPLoss_Epoch/train_phase/train_stream/Task000 = 0.4843
+	Perplexity_Epoch/train_phase/train_stream/Task000 = 7608.3046
+-- >> Start of eval phase << --
+	NSPAcc_Stream/eval_phase/val_stream/Task000 = 0.81822913431.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+	NSPLoss_Stream/eval_phase/val_stream/Task000 = 0.6432
+	Perplexity_Stream/eval_phase/val_stream/Task000 = 8660.5629
+full_name: Loss_Exp/eval_phase/val_stream/Task000/Exp000
+best: 9.709768295288086
+ 17%|███████████████████████████▏                                                                                                                                       | 1/6 [00:00<00:03,  1.64it/s]
+	NSPAcc_Stream/eval_phase/val_stream/Task000 = 0.81822913431.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+-- Starting eval on experience 0 (Task 0) from val stream --.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+best: 9.334338188171387
+ 17%|███████████████████████████▏                                                                                                                                       | 1/6 [00:00<00:03,  1.63it/s]
+-- Starting eval on experience 0 (Task 0) from val stream --.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+Training completedhase/val_stream/Task000/Exp000 = 8.2814 --.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+Making sure filter weights have not changed.
+            (intermediate_act_fn): GELU(approximate='none')-.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+            (self): BertSelfAttention(
+              (query): ElementWiseLinear(in_features=768, out_features=768)
+              (key): ElementWiseLinear(in_features=768, out_features=768)
+              (value): ElementWiseLinear(in_features=768, out_features=768)
+              (dropout): Dropout(p=0.1, inplace=False)
+            )
+            (output): BertSelfOutput(
+              (dense): ElementWiseLinear(in_features=768, out_features=768)
+              (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+              (dropout): Dropout(p=0.1, inplace=False)
+            )
+          )
+          (intermediate): BertIntermediate(
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)
+            (intermediate_act_fn): GELU(approximate='none')-.1126███████████████████████████████████████████████████████████████████████████████████████████████████████| 6/6 [00:03<00:00,  1.82it/s]
+          )
+          (output): BertOutput(
+            (dense): ElementWiseLinear(in_features=3072, out_features=768)
+            (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+            (dropout): Dropout(p=0.1, inplace=False)
+          )
+        )
+      )
+    )
+    (pooler): BertPooler(
+      (dense): ElementWiseLinear(in_features=768, out_features=768)
+      (activation): Tanh()
+    )
+  )
+  (cls): BertPreTrainingHeads(
+    (predictions): BertLMPredictionHead(
+      (transform): BertPredictionHeadTransform(
+        (dense): PretrainingMultiTaskClassifier(
+          (classifiers): ModuleDict(
+            (0): Linear(in_features=768, out_features=768, bias=True)
+          )
+        )
+        (transform_act_fn): GELU(approximate='none')
+        (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+      )
+      (decoder): PretrainingMultiTaskClassifier(
+        (classifiers): ModuleDict(
+          (0): Linear(in_features=768, out_features=30522, bias=False)
+        )
+      )
+    )
+    (seq_relationship): PretrainingMultiTaskClassifier(
+      (classifiers): ModuleDict(
+        (0): Linear(in_features=768, out_features=2, bias=True)
+      )
+    )
+  )
+)
+Start of experience:  1
+Current Classes:  [0.0, 1.0]
+-- >> Start of training phase << --
+-- >> Start of eval phase << --
+-- Starting eval on experience 1 (Task 1) from val stream --
+
+
+
+
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 47/47 [00:10<00:00,  4.57it/s]
+> Eval on experience 1 (Task 1) from val stream ended.
+	Loss_Exp/eval_phase/val_stream/Task001/Exp001 = 11.2377
+	MLLoss_Exp/eval_phase/val_stream/Task001/Exp001 = 10.5016
+	NSPAcc_Exp/eval_phase/val_stream/Task001/Exp001 = 0.5147
+	NSPLoss_Exp/eval_phase/val_stream/Task001/Exp001 = 0.7362
+	Perplexity_Exp/eval_phase/val_stream/Task001/Exp001 = 36413.5351
+-- >> End of eval phase << --
+	Loss_Stream/eval_phase/val_stream/Task001 = 11.2377
+	MLLoss_Stream/eval_phase/val_stream/Task001 = 10.5016
+	NSPAcc_Stream/eval_phase/val_stream/Task001 = 0.5147
+	NSPLoss_Stream/eval_phase/val_stream/Task001 = 0.7362
+	Perplexity_Stream/eval_phase/val_stream/Task001 = 36413.5351
+full_name: Loss_Exp/eval_phase/val_stream/Task001/Exp001
+best: None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 375/375 [03:54<00:00,  1.60it/s]
+Epoch 0 ended.
+	Loss_Epoch/train_phase/train_stream/Task001 = 6.5056
+	MLLoss_Epoch/train_phase/train_stream/Task001 = 6.0841
+	NSPAcc_Epoch/train_phase/train_stream/Task001 = 0.7935
+	NSPLoss_Epoch/train_phase/train_stream/Task001 = 0.4215
+	Perplexity_Epoch/train_phase/train_stream/Task001 = 1835.1600
+-- >> Start of eval phase << --
+-- Starting eval on experience 1 (Task 1) from val stream --
+
+
+
+
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 47/47 [00:10<00:00,  4.37it/s]
+> Eval on experience 1 (Task 1) from val stream ended.
+	Loss_Exp/eval_phase/val_stream/Task001/Exp001 = 5.1129
+	MLLoss_Exp/eval_phase/val_stream/Task001/Exp001 = 4.7124
+	NSPAcc_Exp/eval_phase/val_stream/Task001/Exp001 = 0.8209
+	NSPLoss_Exp/eval_phase/val_stream/Task001/Exp001 = 0.4005
+	Perplexity_Exp/eval_phase/val_stream/Task001/Exp001 = 121.2099
+-- >> End of eval phase << --
+	Loss_Stream/eval_phase/val_stream/Task001 = 5.1129
+	MLLoss_Stream/eval_phase/val_stream/Task001 = 4.7124
+	NSPAcc_Stream/eval_phase/val_stream/Task001 = 0.8209
+	NSPLoss_Stream/eval_phase/val_stream/Task001 = 0.4005
+	Perplexity_Stream/eval_phase/val_stream/Task001 = 121.2099
+full_name: Loss_Exp/eval_phase/val_stream/Task001/Exp001
+best: 5.112856538537989
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 375/375 [04:03<00:00,  1.54it/s]
+Epoch 1 ended.
+	Loss_Epoch/train_phase/train_stream/Task001 = 4.2061
+	MLLoss_Epoch/train_phase/train_stream/Task001 = 3.9716
+	NSPAcc_Epoch/train_phase/train_stream/Task001 = 0.9058
+	NSPLoss_Epoch/train_phase/train_stream/Task001 = 0.2345
+	Perplexity_Epoch/train_phase/train_stream/Task001 = 56.7181
+-- >> Start of eval phase << --
+-- Starting eval on experience 1 (Task 1) from val stream --
+
+
+
+
+
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 47/47 [00:10<00:00,  4.36it/s]
+> Eval on experience 1 (Task 1) from val stream ended.
+	Loss_Exp/eval_phase/val_stream/Task001/Exp001 = 4.5507
+	MLLoss_Exp/eval_phase/val_stream/Task001/Exp001 = 4.1688
+	NSPAcc_Exp/eval_phase/val_stream/Task001/Exp001 = 0.8289
+	NSPLoss_Exp/eval_phase/val_stream/Task001/Exp001 = 0.3818
+	Perplexity_Exp/eval_phase/val_stream/Task001/Exp001 = 71.8157
+-- >> End of eval phase << --
+	Loss_Stream/eval_phase/val_stream/Task001 = 4.5507
+	MLLoss_Stream/eval_phase/val_stream/Task001 = 4.1688
+	NSPAcc_Stream/eval_phase/val_stream/Task001 = 0.8289
+	NSPLoss_Stream/eval_phase/val_stream/Task001 = 0.3818
+	Perplexity_Stream/eval_phase/val_stream/Task001 = 71.8157
+full_name: Loss_Exp/eval_phase/val_stream/Task001/Exp001
+best: 4.550662571096165
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 19%|██████████████████████████████▋                                                                                                                                 | 72/375 [00:46<03:16,  1.54it/s]linear tensor(0.9401, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9411, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9478, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9441, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9343, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9405, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9409, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9423, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9455, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9409, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9336, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9460, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9299, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9322, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9454, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9406, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9362, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9459, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9351, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9370, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9473, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9414, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9334, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9457, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9371, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9370, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9459, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9406, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9334, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9488, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9314, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9322, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9403, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9353, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9333, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9486, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9325, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9312, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9412, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9368, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9332, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9485, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9274, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9254, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9332, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9273, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9319, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9484, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9348, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9330, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9408, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9358, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9271, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9431, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9348, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9344, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9371, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9315, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9212, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9419, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9390, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9410, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9427, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9345, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9039, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9382, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9408, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9463, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9473, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9451, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.8866, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9353, device='cuda:0', grad_fn=<DivBackward0>)
+linear tensor(0.9710, device='cuda:0', grad_fn=<DivBackward0>)
+ 20%|████████████████████████████████▍                                                                                                                               | 76/375 [00:49<03:18,  1.50it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+ 21%|█████████████████████████████████▋                                                                                                                              | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+linear tensor(0.8938, device='cuda:0', grad_fn=<DivBackward0>)                                                                                                       | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+            (dense): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+0it [00:00, ?it/s]): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+0it [00:00, ?it/s]): ElementWiseLinear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]
+-- >> End of training phase << --inear(in_features=768, out_features=3072)                                                                                           | 79/375 [00:51<03:13,  1.53it/s]

@@ -16,7 +16,7 @@ MASK_PROP = 0.15
 def get_nsp_data(tokenizer, paragraphs):
     label = []
     nsp_data = []
-    for paragraph in paragraphs:
+    for paragraph in tqdm(paragraphs):
         for i in range(len(paragraph) - 1):
             if random.random() < 0.5:
                 label.append(1)
@@ -32,8 +32,10 @@ def get_nsp_data(tokenizer, paragraphs):
 
 def mask_nsp_data(tokenizer, paragraphs):
     nsp_data, label = get_nsp_data(tokenizer, paragraphs)
+    original_input_ids = torch.stack(
+        [torch.Tensor(a['input_ids']) for a in nsp_data])
 
-    for i, tokens in enumerate(nsp_data):
+    for i, tokens in tqdm(enumerate(nsp_data)):
         for j, token in enumerate(tokens['input_ids']):
             if token != 0 and token != 101 and token != 102:
                 if random.random() < MASK_PROP:
@@ -41,31 +43,35 @@ def mask_nsp_data(tokenizer, paragraphs):
                         nsp_data[i]['input_ids'][j] = 103
                     else:
                         if random.random() < 0.5:
-                            nsp_data[i]['input_ids'][j] = random.randint(
-                                1, len(tokenizer.get_vocab()))
-    return nsp_data, label
+                            r = random.randint(
+                                1000, len(tokenizer.get_vocab()) - 1)
+                            nsp_data[i]['input_ids'][j] = r
+    return nsp_data, original_input_ids, label
 
 
 def get_paragraphs(data):
     paragraphs = []
     if data == 'realnews':
+        i = 0
         with jsonlines.open('../data/unlabeled/realnews/realnews.jsonl') as f:
-            for i, lin in enumerate(f):
+            for lin in tqdm(f):
                 sentences = lin['text'].strip().replace(
                     '\n', '').lower().split('. ')
                 paragraph = []
                 for sentence in sentences:
                     if len(sentence) >= 2:
                         paragraph.append(sentence)
+                        i += 1
                 if len(paragraph) != 0:
                     paragraphs.append(paragraph)
-                if i == 2:
+
+                if i > 600000:
                     break
 
     elif data == 'pubmed':
         pubmed = load_dataset('pubmed', streaming=True, trust_remote_code=True)
         i = 0
-        for entry in pubmed['train']:
+        for entry in tqdm(pubmed['train']):
             abstracttext = entry['MedlineCitation']['Article']['Abstract']['AbstractText']
             sentences = abstracttext.strip().replace('\n', '').lower().split('. ')
             paragraph = []
@@ -75,12 +81,13 @@ def get_paragraphs(data):
                     i += 1
             if len(paragraph) != 0:
                 paragraphs.append(paragraph)
-            if i > 10:
+
+            if i > 600000:
                 break
 
     elif data == 's2orc':
         file_list = os.listdir('../data/unlabeled/s2orc')
-        for file in file_list:
+        for file in tqdm(file_list):
             with jsonlines.open('../data/unlabeled/s2orc/%s' % file) as f:
                 i = 0
                 for lin in f:
@@ -94,8 +101,6 @@ def get_paragraphs(data):
                                 paragraph.append(sentence)
                         if len(paragraph) != 0:
                             paragraphs.append(paragraph)
-                        if i == 2:
-                            break
     return paragraphs
 
 
@@ -103,267 +108,286 @@ def create_unlabeled_benchmark(args, tokenizer):
     dat = args.datasets.split(',')
     train_datasets = []
     test_datasets = []
+    val_datasets = []
 
     for task_label, dataset in enumerate(dat):
-        paragraphs = get_paragraphs(dataset)
-        nsp_data, label = mask_nsp_data(tokenizer, paragraphs)
+        path = "../datasets/%s/unlabeled" % (dataset)
+        dir = os.listdir(path)
+        if len(dir) == 0:
+            paragraphs = get_paragraphs(dataset)
+            nsp_data, original_input_ids, label = mask_nsp_data(
+                tokenizer, paragraphs)
 
-        input_ids = torch.stack(
-            [torch.Tensor(a['input_ids']) for a in nsp_data])
-        token_type_ids = torch.stack(
-            [torch.Tensor(a['token_type_ids']) for a in nsp_data])
-        attention_mask = torch.stack(
-            [torch.Tensor(a['attention_mask']) for a in nsp_data])
-        label = torch.Tensor(label)
-        length = label.shape[0]
+            input_ids = torch.stack(
+                [torch.Tensor(a['input_ids']).type(torch.IntTensor) for a in nsp_data])
+            token_type_ids = torch.stack(
+                [torch.Tensor(a['token_type_ids']).type(torch.IntTensor) for a in nsp_data])
+            attention_mask = torch.stack(
+                [torch.Tensor(a['attention_mask']).type(torch.IntTensor) for a in nsp_data])
+            label = torch.Tensor(label)
+            length = label.shape[0]
 
-        nsp_data = torch.stack(
-            [input_ids, token_type_ids, attention_mask], dim=1)
+            nsp_data = torch.stack(
+                [input_ids, original_input_ids, token_type_ids, attention_mask], dim=1)
 
-        idx = torch.randperm(length)
-        nsp_data = nsp_data[idx].view(nsp_data.size())
-        label = label[idx].view(label.size())
+            idx = torch.randperm(length)
+            nsp_data = nsp_data[idx].view(nsp_data.size())
+            label = label[idx].view(label.size())
 
-        train_datasets.append(make_classification_dataset(
-            TensorDataset(nsp_data[:int(length * 4 / 5)], label[:int(length * 4 / 5)]), task_labels=task_label))
-        test_datasets.append(make_classification_dataset(
-            TensorDataset(nsp_data[int(length * 4 / 5):], label[int(length * 4 / 5):]), task_labels=task_label))
+            train_dataset = TensorDataset(
+                nsp_data[:int(length * 4 / 5)], label[:int(length * 4 / 5)])
+            val_dataset = TensorDataset(nsp_data[int(
+                length * 4 / 5):int(length * 9 / 10)], label[int(length * 4 / 5):int(length * 9 / 10)])
+            test_dataset = TensorDataset(
+                nsp_data[int(length * 9 / 10):], label[int(length * 9 / 10):])
 
-    return dataset_benchmark(train_datasets, test_datasets)
+            torch.save(train_dataset, "%s/train.pt" % (path))
+            torch.save(val_dataset, "%s/val.pt" % (path))
+            torch.save(test_dataset, "%s/test.pt" % (path))
+
+        else:
+            train_dataset = torch.load("%s/train.pt" % (path))
+            val_dataset = torch.load("%s/val.pt" % (path))
+            test_dataset = torch.load("%s/test.pt" % (path))
+
+        train_dataset_with_task_label = make_classification_dataset(
+            train_dataset, task_labels=task_label)
+        val_dataset_with_task_label = make_classification_dataset(
+            val_dataset, task_labels=task_label)
+        test_dataset_with_task_label = make_classification_dataset(
+            test_dataset, task_labels=task_label)
+
+        train_datasets.append(train_dataset_with_task_label)
+        val_datasets.append(val_dataset_with_task_label)
+        test_datasets.append(test_dataset_with_task_label)
+
+    return dataset_benchmark(train_datasets, test_datasets, other_streams_datasets={"val": val_datasets})
+
+
+def preprocess_hyperpartisan(lin, tokenizer):
+    text = re.sub('<[^>]+>', '', lin['text'])
+    index = text.find('&#')
+    text = text.replace("..", "")
+    while index > -1:
+        idx_semicolon = index + 2
+        if index + 2 < len(text) and text[index+2].isdigit():
+            while idx_semicolon < len(text) and text[idx_semicolon] != ';':
+                idx_semicolon += 1
+                if index - idx_semicolon > 6:
+                    break
+            if text[index+2:idx_semicolon].isdigit():
+                unicode_decimal = int(text[index+2:idx_semicolon])
+                unicode = f'&#%d;' % unicode_decimal
+                text = text.replace(unicode,
+                                    chr(unicode_decimal))
+        index = text.find('&#')
+    text = text.replace("&amp;#160", " ")
+    text = text.replace("&amp;amp;", "&")
+    text = text.replace("&amp;gt;", ">")
+
+    tokens = tokenizer(text, padding='max_length',
+                       max_length=512, truncation='longest_first')
+    input_ids = torch.Tensor(tokens['input_ids'])
+    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+    attention_mask = torch.Tensor(tokens['attention_mask'])
+
+    nsp_data = torch.stack(
+        [input_ids, token_type_ids, attention_mask], dim=0)
+
+    return nsp_data
+
+
+def preprocess(lin, tokenizer):
+    tokens = tokenizer(lin['text'], padding='max_length',
+                       max_length=512, truncation='longest_first')
+    input_ids = torch.Tensor(tokens['input_ids'])
+    token_type_ids = torch.Tensor(tokens['token_type_ids'])
+    attention_mask = torch.Tensor(tokens['attention_mask'])
+
+    nsp_data = torch.stack(
+        [input_ids, token_type_ids, attention_mask], dim=0)
+
+    return nsp_data
 
 
 def create_endtask_benchmark(args, tokenizer):
     dat = args.datasets.split(',')
     train_datasets = []
     test_datasets = []
+    val_datasets = []
 
     for task_label, dataset in enumerate(dat):
+        path = "../datasets/%s/endtask" % (dataset)
+        dir = os.listdir(path)
         if dataset == 'realnews':
-            hyperpartisan = load_dataset('hyperpartisan_news_detection', 'bypublisher',
-                                         trust_remote_code=True)
-            str_to_idx = {'false': 0,
-                          'true': 1}
+            if len(dir) == 0:
+                hyperpartisan_train = load_dataset('hyperpartisan_news_detection', 'bypublisher',
+                                                   trust_remote_code=True, split='train')
+                hyperpartisan_test = load_dataset('hyperpartisan_news_detection', 'bypublisher',
+                                                  trust_remote_code=True, split='validation[0%:50%]')
+                hyperpartisan_val = load_dataset('hyperpartisan_news_detection', 'bypublisher',
+                                                 trust_remote_code=True, split='validation[50%:100%]')
 
-            label_train = []
-            input_train = []
-            for i, lin in enumerate(hyperpartisan['train']):
-                text = re.sub('<[^>]+>', '', lin['text'])
-                index = text.find('&#')
-                text = text.replace("..", "")
-                while index > -1:
-                    idx_semicolon = index + 2
-                    if index + 2 < len(text) and text[index+2].isdigit():
-                        while idx_semicolon < len(text) and text[idx_semicolon] != ';':
-                            idx_semicolon += 1
-                            if index - idx_semicolon > 6:
-                                break
-                        if text[index+2:idx_semicolon].isdigit():
-                            unicode_decimal = int(text[index+2:idx_semicolon])
-                            unicode = f'&#%d;' % unicode_decimal
-                            text = text.replace(unicode,
-                                                chr(unicode_decimal))
-                    index = text.find('&#')
-                text = text.replace("&amp;#160", " ")
-                text = text.replace("&amp;amp;", "&")
-                text = text.replace("&amp;gt;", ">")
+                label_test = []
+                input_test = []
+                for lin in tqdm(hyperpartisan_test):
+                    label_test.append(int(lin['hyperpartisan']))
+                    nsp_data = preprocess_hyperpartisan(lin, tokenizer)
+                    input_test.append(nsp_data)
+                label_test = torch.Tensor(label_test)
+                input_test = torch.stack(input_test)
 
-                label_train.append(int(lin['hyperpartisan']))
+                label_train = []
+                input_train = []
+                for lin in tqdm(hyperpartisan_train):
+                    label_train.append(int(lin['hyperpartisan']))
+                    nsp_data = preprocess_hyperpartisan(lin, tokenizer)
+                    input_train.append(nsp_data)
+                label_train = torch.Tensor(label_train)
+                input_train = torch.stack(input_train)
 
-                tokens = tokenizer(text, padding='max_length',
-                                   max_length=512, truncation='longest_first')
-                input_ids = torch.Tensor(tokens['input_ids'])
-                token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                attention_mask = torch.Tensor(tokens['attention_mask'])
+                label_val = []
+                input_val = []
+                for lin in tqdm(hyperpartisan_val):
+                    label_val.append(int(lin['hyperpartisan']))
+                    nsp_data = preprocess_hyperpartisan(lin, tokenizer)
+                    input_val.append(nsp_data)
+                label_val = torch.Tensor(label_val)
+                input_val = torch.stack(input_val)
 
-                nsp_data = torch.stack(
-                    [input_ids, token_type_ids, attention_mask], dim=0)
-                input_train.append(nsp_data)
+                train_dataset = TensorDataset(input_train, label_train)
+                test_dataset = TensorDataset(input_test, label_test)
+                val_dataset = TensorDataset(input_val, label_val)
 
-                if i == 20:
-                    break
+                torch.save(train_dataset, "%s/train.pt" % (path))
+                torch.save(val_dataset, "%s/val.pt" % (path))
+                torch.save(test_dataset, "%s/test.pt" % (path))
 
-            label_train = torch.Tensor(label_train)
-            input_train = torch.stack(input_train)
-
-            label_test = []
-            input_test = []
-            for i, lin in enumerate(hyperpartisan['validation']):
-                text = re.sub('<[^>]+>', '', lin['text'])
-                index = text.find('&#')
-                text = text.replace("..", "")
-                while index > -1:
-                    idx_semicolon = index + 2
-                    if index + 2 < len(text) and text[index+2].isdigit():
-                        while idx_semicolon < len(text) and text[idx_semicolon] != ';':
-                            idx_semicolon += 1
-                            if index - idx_semicolon > 6:
-                                break
-                        if text[index+2:idx_semicolon].isdigit():
-                            unicode_decimal = int(text[index+2:idx_semicolon])
-                            unicode = f'&#%d;' % unicode_decimal
-                            text = text.replace(unicode,
-                                                chr(unicode_decimal))
-                    index = text.find('&#')
-                text = text.replace("&amp;#160", " ")
-                text = text.replace("&amp;amp;", "&")
-                text = text.replace("&amp;gt;", ">")
-
-                label_test.append(int(lin['hyperpartisan']))
-                tokens = tokenizer(text, padding='max_length',
-                                   max_length=512, truncation='longest_first')
-                input_ids = torch.Tensor(tokens['input_ids'])
-                token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                attention_mask = torch.Tensor(tokens['attention_mask'])
-
-                nsp_data = torch.stack(
-                    [input_ids, token_type_ids, attention_mask], dim=0)
-                input_test.append(nsp_data)
-
-                if i == 5:
-                    break
-
-            label_test = torch.Tensor(label_test)
-            input_test = torch.stack(input_test)
-
-            train_datasets.append(make_classification_dataset(
-                TensorDataset(input_train, label_train), task_labels=task_label))
-            test_datasets.append(make_classification_dataset(
-                TensorDataset(input_test, label_test), task_labels=task_label))
+            else:
+                train_dataset = torch.load("%s/train.pt" % (path))
+                val_dataset = torch.load("%s/val.pt" % (path))
+                test_dataset = torch.load("%s/test.pt" % (path))
 
         elif dataset == 'pubmed':
-            str_to_idx = {'INHIBITOR': 0,
-                          'ANTAGONIST': 1,
-                          'AGONIST': 2,
-                          'DOWNREGULATOR': 3,
-                          'PRODUCT-OF': 4,
-                          'SUBSTRATE': 5,
-                          'INDIRECT-UPREGULATOR': 6,
-                          'UPREGULATOR': 7,
-                          'INDIRECT-DOWNREGULATOR': 8,
-                          'ACTIVATOR': 9,
-                          'AGONIST-ACTIVATOR': 10,
-                          'AGONIST-INHIBITOR': 11,
-                          'SUBSTRATE_PRODUCT-OF': 12
-                          }
-            label_train = []
-            input_train = []
-            with jsonlines.open('../data/endtask/chemprot/train.txt') as f:
-                for lin in f:
-                    label_train.append(str_to_idx[lin['label']])
+            if len(dir) == 0:
+                str_to_idx = {'INHIBITOR': 0,
+                              'ANTAGONIST': 1,
+                              'AGONIST': 2,
+                              'DOWNREGULATOR': 3,
+                              'PRODUCT-OF': 4,
+                              'SUBSTRATE': 5,
+                              'INDIRECT-UPREGULATOR': 6,
+                              'UPREGULATOR': 7,
+                              'INDIRECT-DOWNREGULATOR': 8,
+                              'ACTIVATOR': 9,
+                              'AGONIST-ACTIVATOR': 10,
+                              'AGONIST-INHIBITOR': 11,
+                              'SUBSTRATE_PRODUCT-OF': 12
+                              }
+                label_train = []
+                input_train = []
+                with jsonlines.open('../data/endtask/chemprot/train.txt') as f:
+                    for lin in tqdm(f):
+                        label_train.append(str_to_idx[lin['label']])
+                        nsp_data = preprocess(lin, tokenizer)
+                        input_train.append(nsp_data)
+                label_train = torch.Tensor(label_train)
+                input_train = torch.stack(input_train)
 
-                    tokens = tokenizer(lin['text'], padding='max_length',
-                                       max_length=512, truncation='longest_first')
-                    input_ids = torch.Tensor(tokens['input_ids'])
-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+                label_val = []
+                input_val = []
+                with jsonlines.open('../data/endtask/chemprot/dev.txt') as f:
+                    for lin in tqdm(f):
+                        label_val.append(str_to_idx[lin['label']])
+                        nsp_data = preprocess(lin, tokenizer)
+                        input_val.append(nsp_data)
+                label_val = torch.Tensor(label_val)
+                input_val = torch.stack(input_val)
 
-                    nsp_data = torch.stack(
-                        [input_ids, token_type_ids, attention_mask], dim=0)
-                    input_train.append(nsp_data)
-            with jsonlines.open('../data/endtask/chemprot/dev.txt') as f:
-                for lin in f:
-                    label_train.append(str_to_idx[lin['label']])
+                label_test = []
+                input_test = []
+                with jsonlines.open('../data/endtask/chemprot/test.txt') as f:
+                    for lin in tqdm(f):
+                        label_test.append(str_to_idx[lin['label']])
+                        nsp_data = preprocess(lin, tokenizer)
+                        input_test.append(nsp_data)
+                label_test = torch.Tensor(label_test)
+                input_test = torch.stack(input_test)
 
-                    tokens = tokenizer(lin['text'], padding='max_length',
-                                       max_length=512, truncation='longest_first')
-                    input_ids = torch.Tensor(tokens['input_ids'])
-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+                train_dataset = TensorDataset(input_train, label_train)
+                test_dataset = TensorDataset(input_test, label_test)
+                val_dataset = TensorDataset(input_val, label_val)
 
-                    nsp_data = torch.stack(
-                        [input_ids, token_type_ids, attention_mask], dim=0)
-                    input_train.append(nsp_data)
+                torch.save(train_dataset, "%s/train.pt" % (path))
+                torch.save(val_dataset, "%s/val.pt" % (path))
+                torch.save(test_dataset, "%s/test.pt" % (path))
 
-            label_train = torch.Tensor(label_train)
-            input_train = torch.stack(input_train)
-
-            label_test = []
-            input_test = []
-
-            with jsonlines.open('../data/endtask/chemprot/test.txt') as f:
-                for lin in f:
-                    label_test.append(str_to_idx[lin['label']])
-
-                    tokens = tokenizer(lin['text'], padding='max_length',
-                                       max_length=512, truncation='longest_first')
-                    input_ids = torch.Tensor(tokens['input_ids'])
-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                    attention_mask = torch.Tensor(tokens['attention_mask'])
-
-                    nsp_data = torch.stack(
-                        [input_ids, token_type_ids, attention_mask], dim=0)
-                    input_test.append(nsp_data)
-
-            label_test = torch.Tensor(label_test)
-            input_test = torch.stack(input_test)
-
-            train_datasets.append(make_classification_dataset(
-                TensorDataset(input_train, label_train), task_labels=task_label))
-            test_datasets.append(make_classification_dataset(
-                TensorDataset(input_test, label_test), task_labels=task_label))
+            else:
+                train_dataset = torch.load("%s/train.pt" % (path))
+                val_dataset = torch.load("%s/val.pt" % (path))
+                test_dataset = torch.load("%s/test.pt" % (path))
 
         elif dataset == 's2orc':
-            str_to_idx = {'Background': 0,
-                          'Uses': 1,
-                          'CompareOrContrast': 2,
-                          'Extends': 3,
-                          'Motivation': 4,
-                          'Future': 5
-                          }
-            label_train = []
-            input_train = []
-            with jsonlines.open('../data/endtask/citation_intent/train.txt') as f:
-                for lin in f:
-                    label_train.append(str_to_idx[lin['label']])
+            if len(dir) == 0:
+                str_to_idx = {'Background': 0,
+                              'Uses': 1,
+                              'CompareOrContrast': 2,
+                              'Extends': 3,
+                              'Motivation': 4,
+                              'Future': 5
+                              }
+                label_train = []
+                input_train = []
+                with jsonlines.open('../data/endtask/citation_intent/train.txt') as f:
+                    for lin in tqdm(f):
+                        label_train.append(str_to_idx[lin['label']])
+                        nsp_data = preprocess(lin, tokenizer)
+                        input_train.append(nsp_data)
+                label_train = torch.Tensor(label_train)
+                input_train = torch.stack(input_train)
 
-                    tokens = tokenizer(lin['text'], padding='max_length',
-                                       max_length=512, truncation='longest_first')
-                    input_ids = torch.Tensor(tokens['input_ids'])
-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+                label_val = []
+                input_val = []
+                with jsonlines.open('../data/endtask/citation_intent/dev.txt') as f:
+                    for lin in tqdm(f):
+                        label_val.append(str_to_idx[lin['label']])
+                        nsp_data = preprocess(lin, tokenizer)
+                        input_val.append(nsp_data)
+                label_val = torch.Tensor(label_val)
+                input_val = torch.stack(input_val)
 
-                    nsp_data = torch.stack(
-                        [input_ids, token_type_ids, attention_mask], dim=0)
-                    input_train.append(nsp_data)
-            with jsonlines.open('../data/endtask/citation_intent/dev.txt') as f:
-                for lin in f:
-                    label_train.append(str_to_idx[lin['label']])
+                label_test = []
+                input_test = []
+                with jsonlines.open('../data/endtask/citation_intent/test.txt') as f:
+                    for lin in tqdm(f):
+                        label_test.append(str_to_idx[lin['label']])
+                        nsp_data = preprocess(lin, tokenizer)
+                        input_test.append(nsp_data)
+                label_test = torch.Tensor(label_test)
+                input_test = torch.stack(input_test)
 
-                    tokens = tokenizer(lin['text'], padding='max_length',
-                                       max_length=512, truncation='longest_first')
-                    input_ids = torch.Tensor(tokens['input_ids'])
-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+                train_dataset = TensorDataset(input_train, label_train)
+                test_dataset = TensorDataset(input_test, label_test)
+                val_dataset = TensorDataset(input_val, label_val)
 
-                    nsp_data = torch.stack(
-                        [input_ids, token_type_ids, attention_mask], dim=0)
-                    input_train.append(nsp_data)
+                torch.save(train_dataset, "%s/train.pt" % (path))
+                torch.save(val_dataset, "%s/val.pt" % (path))
+                torch.save(test_dataset, "%s/test.pt" % (path))
 
-            label_train = torch.Tensor(label_train)
-            input_train = torch.stack(input_train)
+            else:
+                train_dataset = torch.load("%s/train.pt" % (path))
+                val_dataset = torch.load("%s/val.pt" % (path))
+                test_dataset = torch.load("%s/test.pt" % (path))
 
-            label_test = []
-            input_test = []
-            with jsonlines.open('../data/endtask/citation_intent/test.txt') as f:
-                for lin in f:
-                    label_test.append(str_to_idx[lin['label']])
+        train_dataset_with_task_label = make_classification_dataset(
+            train_dataset, task_labels=task_label)
+        test_dataset_with_task_label = make_classification_dataset(
+            test_dataset, task_labels=task_label)
+        val_dataset_with_task_label = make_classification_dataset(
+            val_dataset, task_labels=task_label)
 
-                    tokens = tokenizer(lin['text'], padding='max_length',
-                                       max_length=512, truncation='longest_first')
-                    input_ids = torch.Tensor(tokens['input_ids'])
-                    token_type_ids = torch.Tensor(tokens['token_type_ids'])
-                    attention_mask = torch.Tensor(tokens['attention_mask'])
+        train_datasets.append(train_dataset_with_task_label)
+        val_datasets.append(val_dataset_with_task_label)
+        test_datasets.append(test_dataset_with_task_label)
 
-                    nsp_data = torch.stack(
-                        [input_ids, token_type_ids, attention_mask], dim=0)
-                    input_test.append(nsp_data)
-
-            label_test = torch.Tensor(label_test)
-            input_test = torch.stack(input_test)
-
-            train_datasets.append(make_classification_dataset(
-                TensorDataset(input_train, label_train), task_labels=task_label))
-            test_datasets.append(make_classification_dataset(
-                TensorDataset(input_test, label_test), task_labels=task_label))
-
-    return dataset_benchmark(train_datasets, test_datasets)
+    return dataset_benchmark(train_datasets, test_datasets, other_streams_datasets={"val": val_datasets})

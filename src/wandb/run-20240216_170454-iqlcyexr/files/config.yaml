@@ -1,0 +1,53 @@
+wandb_version: 1
+
+datasets:
+  desc: null
+  value: s2orc
+model:
+  desc: null
+  value: bert-base-uncased
+epoch:
+  desc: null
+  value: 5
+seed:
+  desc: null
+  value: 1
+_wandb:
+  desc: null
+  value:
+    code_path: code/src/temp.py
+    python_version: 3.10.13
+    cli_version: 0.16.2
+    framework: huggingface
+    huggingface_version: 4.37.2
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1708070694.547519
+    t:
+      1:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 51
+      - 55
+      2:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 51
+      - 55
+      3:
+      - 13
+      - 14
+      - 16
+      - 23
+      4: 3.10.13
+      5: 0.16.2
+      6: 4.37.2
+      8:
+      - 5
+      9:
+        2: Avalanche
+      13: linux-x86_64

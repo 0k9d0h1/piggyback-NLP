@@ -1,0 +1,168 @@
+{
+    "os": "Linux-4.15.0-76-generic-x86_64-with-glibc2.27",
+    "python": "3.10.13",
+    "heartbeatAt": "2024-02-19T12:09:10.703306",
+    "startedAt": "2024-02-19T12:09:10.580322",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/0k9d0h1/piggyback/piggyback-NLP/src/train_on_unlabeled.py",
+    "codePathLocal": "train_on_unlabeled.py",
+    "codePath": "src/train_on_unlabeled.py",
+    "git": {
+        "remote": "https://github.com/0k9d0h1/piggyback-NLP.git",
+        "commit": "7ff30fd6281cab45d3dbe5b31f05e8698e289760"
+    },
+    "email": null,
+    "root": "/home/0k9d0h1/piggyback/piggyback-NLP",
+    "host": "ECE-tgpu6",
+    "username": "0k9d0h1",
+    "executable": "/home/0k9d0h1/anaconda3/envs/DHK/bin/python",
+    "cpu_count": 24,
+    "cpu_count_logical": 24,
+    "cpu_freq": {
+        "current": 1227.3517916666665,
+        "min": 1000.0,
+        "max": 2401.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 1200.056,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1600.259,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1519.081,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1712.534,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.663,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.916,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.122,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 3281.45,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 999.947,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 2489.888,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.366,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.501,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.333,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.349,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.465,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.667,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1037.468,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1045.396,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.037,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.068,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.603,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.17,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.422,
+            "min": 1000.0,
+            "max": 2401.0
+        },
+        {
+            "current": 1000.059,
+            "min": 1000.0,
+            "max": 2401.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 847.2998466491699,
+            "used": 28.72205352783203
+        }
+    },
+    "gpu": "NVIDIA TITAN RTX",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA TITAN RTX",
+            "memory_total": 25769803776
+        }
+    ],
+    "memory": {
+        "total": 251.38733673095703
+    }
+}

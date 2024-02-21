@@ -1,0 +1,160 @@
+{
+    "os": "Linux-4.15.0-76-generic-x86_64-with-glibc2.27",
+    "python": "3.10.13",
+    "heartbeatAt": "2024-02-20T06:19:00.854848",
+    "startedAt": "2024-02-20T06:19:00.708186",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/0k9d0h1/piggyback/piggyback-NLP/src/train_on_unlabeled.py",
+    "codePathLocal": "train_on_unlabeled.py",
+    "codePath": "src/train_on_unlabeled.py",
+    "git": {
+        "remote": "https://github.com/0k9d0h1/piggyback-NLP.git",
+        "commit": "7ff30fd6281cab45d3dbe5b31f05e8698e289760"
+    },
+    "email": null,
+    "root": "/home/0k9d0h1/piggyback/piggyback-NLP",
+    "host": "ECE-util2",
+    "username": "0k9d0h1",
+    "executable": "/home/0k9d0h1/anaconda3/envs/DHK/bin/python",
+    "cpu_count": 24,
+    "cpu_count_logical": 24,
+    "cpu_freq": {
+        "current": 1006.2627916666667,
+        "min": 1000.0,
+        "max": 3200.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 999.995,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 999.733,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.016,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1081.684,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.001,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.803,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.02,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.128,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.118,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.069,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.05,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.017,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 999.98,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.375,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.227,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.121,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 999.994,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.229,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.076,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.606,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.069,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.007,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.12,
+            "min": 1000.0,
+            "max": 3200.0
+        },
+        {
+            "current": 1000.036,
+            "min": 1000.0,
+            "max": 3200.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 407.9124069213867,
+            "used": 43.20427703857422
+        }
+    },
+    "memory": {
+        "total": 188.39296340942383
+    }
+}
